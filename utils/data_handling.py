@@ -1,7 +1,8 @@
 import pandas as pd
 import os
 
-def get_data(directory : str):
+def get_data(directory='../data/cicids'):
+    print(os.getcwd())
     data_dict = data_loader(directory)
     return data_concatenate(data_dict)
 
@@ -20,3 +21,21 @@ def data_concatenate(data_dict : dict[str, pd.DataFrame]) -> pd.DataFrame:
     data = pd.concat([df.assign(source=name) for name, df in data_dict.items()],ignore_index=True)
     data.columns = data.columns.str.strip()
     return data
+
+def get_sample(directory='../data/cicids', nrows=1000, fraction=None):
+    # 2 choices: nrows and fraaction
+    # nrows: choose n rows subset
+    #fraction: choose a fraction of rows from each dataset(csv file)
+    data_dict = {}
+    for filename in os.listdir(directory):
+        if filename.endswith(".csv"):
+            path = os.path.join(directory, filename)
+            if fraction:
+                df = pd.read_csv(path)
+                df = df.sample(frac=fraction, random_state=42)
+            else:
+                df = pd.read_csv(path, nrows=nrows)
+            key = os.path.splitext(os.path.splitext(filename)[0])[0]
+            data_dict[key] = df
+
+    return data_concatenate(data_dict)

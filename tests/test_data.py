@@ -1,5 +1,6 @@
 from ..utils.data_handling import *
 import pandas as pd
+from ..utils.data_cleaning import *
 
 def test_get_data():
     data_dir = os.path.join("data","cicids")
@@ -8,6 +9,3 @@ def test_get_data():
     assert isinstance(df, pd.DataFrame)
     assert not df.empty
     assert "Label" in df.columns
-
-if __name__ == "__main__":
-    print("Working")
