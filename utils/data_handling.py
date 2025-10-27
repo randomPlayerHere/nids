@@ -2,7 +2,6 @@ import pandas as pd
 import os
 
 def get_data(directory='../data/cicids'):
-    print(os.getcwd())
     data_dict = data_loader(directory)
     return data_concatenate(data_dict)
 

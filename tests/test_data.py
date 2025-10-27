@@ -9,3 +9,7 @@ def test_get_data():
     assert isinstance(df, pd.DataFrame)
     assert not df.empty
     assert "Label" in df.columns
+
+def test_data_processing():
+    df = get_sample()
+    assert None

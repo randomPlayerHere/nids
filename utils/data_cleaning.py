@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 
-def clean_data(df, duplicates=True, inf_remove=True, missing_val=True, non_unique_col=True, attack_groups=True):
+def clean_df(df, duplicates=True, inf_remove=True, missing_val=True, non_unique_col=True, attack_groups=True):
     if duplicates:
         duplicate_row_removal(df)
         duplicate_column_removal(df)
@@ -15,7 +15,7 @@ def clean_data(df, duplicates=True, inf_remove=True, missing_val=True, non_uniqu
     if attack_groups(df):
         add_attack_groups(df)
 
-def duplicate_row_removal(df : pd.dfFrame):
+def duplicate_row_removal(df : pd.DataFrame):
     df.drop_duplicates(keep='first')
 
 def duplicate_column_removal(df):
