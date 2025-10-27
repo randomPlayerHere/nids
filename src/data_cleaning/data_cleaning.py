@@ -2,18 +2,19 @@
 import pandas as pd
 import numpy as np
 
-def clean_df(df, duplicates=True, inf_remove=True, missing_val=True, non_unique_col=True, attack_groups=True):
+def clean_df(df, duplicates=True, inf_remove=True, missing_val_bool=True, non_unique_col=True, attack_group=True):
     if duplicates:
         duplicate_row_removal(df)
         duplicate_column_removal(df)
     if inf_remove:
         remove_infinite(df)
-    if missing_val:
+    if missing_val_bool:
         missing_val(df)
     if non_unique_col:
         same_val(df)
-    if attack_groups(df):
+    if attack_group:
         add_attack_groups(df)
+    return df
 
 def duplicate_row_removal(df : pd.DataFrame):
     df.drop_duplicates(keep='first')
@@ -64,3 +65,11 @@ def add_attack_groups(df):
     }
     df['Attack Type'] = df['Label'].map(group_mapping)
     df.drop(df[(df['Attack Type'] == 'Infiltration') | (df['Attack Type'] == 'Miscellaneous')].index, inplace=True)
+
+def redundancy_correlation_matrix(df, threshold=0.9):
+    numeric_df = df.select_dtypes(include=[np.number])
+    corr_matrix = numeric_df.corr().abs()
+    upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+    to_drop = [column for column in upper.columns if any(upper[column] > threshold)]
+    return df.drop(columns=to_drop, errors='ignore')
+

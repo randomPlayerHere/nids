@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import os
 
 def get_data(directory='../data/cicids'):

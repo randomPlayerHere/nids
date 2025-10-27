@@ -120,3 +120,45 @@ Maybe integrate a black-box attack simulation or adversarial training defense.
 7. Visualization & Explainability
 Add SHAP or LIME to explain why a connection is flagged.
 Visualize feature importance per attack type.
+
+
+
+
+
+new file structure:
+cicids_project/
+│
+├── data/
+│   ├── raw/                # Original CSVs from CICIDS-2017
+│   ├── interim/            # Cleaned intermediate files
+│   └── processed/          # Final ready-to-model datasets
+│
+├── notebooks/              # Optional exploratory notebooks (EDA, visualization)
+│
+├── src/
+│   ├── __init__.py
+│   ├── data_cleaning/
+│   │   ├── __init__.py
+│   │   ├── cleaner.py      # DataCleaner class (main cleaning logic)
+│   │   ├── utils.py        # helper utilities (logging, config, profiling)
+│   │   └── tests/          # unit tests for cleaner
+│   │
+│   ├── feature_engineering/
+│   │   ├── __init__.py
+│   │   ├── selector.py     # correlation filter, model-based selection, RFE
+│   │   ├── engineer.py     # domain features (ratios, rates, flags)
+│   │   └── pca_reducer.py  # PCA wrapper
+│   │
+│   ├── modeling/
+│   │   ├── train.py        # train/evaluate models
+│   │   ├── utils.py
+│   │   └── metrics.py
+│   │
+│   └── config/
+│       ├── settings.yaml   # thresholds, paths, hyperparams
+│       └── logger.yaml     # logging configuration
+│
+├── tests/                  # integration tests
+│
+├── main.py                 # orchestration script
+└── requirements.txt
