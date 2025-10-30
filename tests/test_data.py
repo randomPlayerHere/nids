@@ -1,6 +1,6 @@
-from ..data_cleaning.data_handling import *
+from ..src.data_cleaning.data_handling import *
 import pandas as pd
-from ..data_cleaning.data_cleaning import *
+from ..src.data_cleaning.data_cleaning import *
 
 def test_get_data():
     data_dir = os.path.join("data","cicids")
