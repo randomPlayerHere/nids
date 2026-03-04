@@ -30,12 +30,17 @@ except:
     pass
 
 # ─── Constants ───────────────────────────────────────────────────────────────
-MODEL_PATH = "models/nids_dcnn_model.h5"
+# Model paths (prefer TFLite if available for lower memory)
+TFLITE_MODEL_PATH = "models/nids_dcnn_model.tflite"
+H5_MODEL_PATH = "models/nids_dcnn_model.h5"
 SCALER_PATH = "models/cicids_scaler.pkl"
 LABEL_MAP = {0: "BENIGN", 1: "ATTACK"}
-MAX_ROWS_PER_REQUEST = 30000
-PREDICT_BATCH_SIZE = 128
-MAX_DOWNLOAD_ROWS = 1500
+
+# ─── Memory optimization constants ───────────────────────────────────────────
+MAX_ROWS_PER_REQUEST = 10000   # Hard limit for low-memory tiers
+PREDICT_BATCH_SIZE = 64        # Smaller batches = less peak memory
+MAX_DOWNLOAD_ROWS = 500        # Cap CSV response size
+MAX_DISPLAY_ROWS = 30          # Rows to show in results table
 
 # ─── App setup ───────────────────────────────────────────────────────────────
 app = FastAPI(title="Sentinel AI – NIDS Backend")
@@ -49,24 +54,34 @@ app.add_middleware(
 
 # ─── Load model + scaler at startup ─────────────────────────────────────────
 model = None
+tflite_interpreter = None
 scaler = None
 load_error = None
+use_tflite = False
 
 def load_assets():
-    global model, scaler, load_error
+    global model, tflite_interpreter, scaler, load_error, use_tflite
     try:
-        # Lazy-import tensorflow so the module loads fast if tf isn't needed yet
-        from tensorflow.keras.models import load_model as keras_load
-
-        if not os.path.exists(MODEL_PATH):
-            raise FileNotFoundError(f"Model not found: {MODEL_PATH}")
         if not os.path.exists(SCALER_PATH):
             raise FileNotFoundError(f"Scaler not found: {SCALER_PATH}")
-
-        model = keras_load(MODEL_PATH)
         scaler = joblib.load(SCALER_PATH)
+
+        # Prefer TFLite for lower memory footprint
+        if os.path.exists(TFLITE_MODEL_PATH):
+            import tensorflow as tf
+            tflite_interpreter = tf.lite.Interpreter(model_path=TFLITE_MODEL_PATH)
+            tflite_interpreter.allocate_tensors()
+            use_tflite = True
+            print("✅ TFLite model and scaler loaded successfully (low-memory mode)")
+        elif os.path.exists(H5_MODEL_PATH):
+            from tensorflow.keras.models import load_model as keras_load
+            model = keras_load(H5_MODEL_PATH)
+            use_tflite = False
+            print("✅ Keras H5 model and scaler loaded successfully")
+        else:
+            raise FileNotFoundError(f"No model found at {TFLITE_MODEL_PATH} or {H5_MODEL_PATH}")
+
         load_error = None
-        print("✅ Model and scaler loaded successfully")
     except Exception as exc:
         load_error = str(exc)
         print(f"❌ Failed to load ML assets: {load_error}")
@@ -117,6 +132,8 @@ async def health():
     return {
         "status": "ready",
         "expected_features": int(scaler.n_features_in_),
+        "model_type": "tflite" if use_tflite else "keras",
+        "max_rows": MAX_ROWS_PER_REQUEST,
     }
 
 
@@ -125,7 +142,7 @@ async def predict(file: UploadFile = File(...)):
     """
     Accept a CSV upload, run the full NIDS pipeline, and return results as JSON.
     """
-    if model is None or scaler is None:
+    if (model is None and tflite_interpreter is None) or scaler is None:
         raise HTTPException(status_code=503, detail=f"Model not loaded: {load_error}")
 
     if not file.filename.endswith(".csv"):
@@ -167,13 +184,40 @@ async def predict(file: UploadFile = File(...)):
         # 3-4. Scale + predict in chunks (avoid full-array memory spikes) ──
         predicted_chunks = []
         confidence_chunks = []
-        for i in range(0, total_rows, PREDICT_BATCH_SIZE):
-            batch_df = processed.iloc[i:i + PREDICT_BATCH_SIZE]
-            scaled_batch = scaler.transform(batch_df)
-            x_batch = scaled_batch.reshape(scaled_batch.shape[0], scaled_batch.shape[1], 1)
-            batch_preds = model.predict(x_batch, verbose=0)
-            predicted_chunks.append(np.argmax(batch_preds, axis=1))
-            confidence_chunks.append(np.max(batch_preds, axis=1))
+
+        if use_tflite:
+            # TFLite inference path (much lower memory)
+            input_details = tflite_interpreter.get_input_details()
+            output_details = tflite_interpreter.get_output_details()
+
+            for i in range(0, total_rows, PREDICT_BATCH_SIZE):
+                batch_df = processed.iloc[i:i + PREDICT_BATCH_SIZE]
+                scaled_batch = scaler.transform(batch_df).astype(np.float32)
+                x_batch = scaled_batch.reshape(scaled_batch.shape[0], scaled_batch.shape[1], 1)
+
+                # TFLite requires fixed batch size; process row by row if needed
+                batch_preds = []
+                for row_idx in range(x_batch.shape[0]):
+                    single_input = x_batch[row_idx:row_idx+1]
+                    tflite_interpreter.resize_tensor_input(input_details[0]['index'], single_input.shape)
+                    tflite_interpreter.allocate_tensors()
+                    tflite_interpreter.set_tensor(input_details[0]['index'], single_input)
+                    tflite_interpreter.invoke()
+                    output = tflite_interpreter.get_tensor(output_details[0]['index'])
+                    batch_preds.append(output[0])
+
+                batch_preds = np.array(batch_preds)
+                predicted_chunks.append(np.argmax(batch_preds, axis=1))
+                confidence_chunks.append(np.max(batch_preds, axis=1))
+        else:
+            # Keras H5 model inference path
+            for i in range(0, total_rows, PREDICT_BATCH_SIZE):
+                batch_df = processed.iloc[i:i + PREDICT_BATCH_SIZE]
+                scaled_batch = scaler.transform(batch_df).astype(np.float32)
+                x_batch = scaled_batch.reshape(scaled_batch.shape[0], scaled_batch.shape[1], 1)
+                batch_preds = model.predict(x_batch, verbose=0)
+                predicted_chunks.append(np.argmax(batch_preds, axis=1))
+                confidence_chunks.append(np.max(batch_preds, axis=1))
 
         predicted_classes = np.concatenate(predicted_chunks)
         confidence_scores = np.concatenate(confidence_chunks)
@@ -213,8 +257,8 @@ async def predict(file: UploadFile = File(...)):
         # Cap at 4 columns for readability
         display_columns = display_columns[:4]
 
-        # 8. Build sample results (top 50 for memory efficiency) ─────────────
-        limit = min(50, total_rows)
+        # 8. Build sample results (top N for memory efficiency) ───────────────
+        limit = min(MAX_DISPLAY_ROWS, total_rows)
         results_rows = []
         for i in range(limit):
             row = {}
