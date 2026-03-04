@@ -6,5 +6,4 @@ joblib
 fastapi
 uvicorn[standard]
 python-multipart
-python-multipart
 imbalanced-learn

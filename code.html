@@ -513,11 +513,21 @@
 
             try {
                 setProgress("model", 50);
-                const res = await fetch("/predict", { method: "POST", body: formData });
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 120000);
+                const res = await fetch("/predict", {
+                    method: "POST",
+                    body: formData,
+                    signal: controller.signal,
+                });
+                clearTimeout(timeoutId);
 
                 if (!res.ok) {
                     const errText = await res.text();
-                    throw new Error(errText);
+                    if (res.status === 502 || res.status === 503 || res.status === 504) {
+                        throw new Error("Service temporarily unavailable (" + res.status + "). Please retry with a smaller CSV.");
+                    }
+                    throw new Error(errText.slice(0, 400));
                 }
 
                 setProgress("model", 90);
@@ -532,7 +542,11 @@
 
             } catch (err) {
                 console.error(err);
-                alert("Analysis failed: " + err.message);
+                if (err.name === "AbortError") {
+                    alert("Analysis timed out after 120s. Please try a smaller CSV file.");
+                } else {
+                    alert("Analysis failed: " + err.message);
+                }
             } finally {
                 selectFileBtn.textContent = "Select File";
                 selectFileBtn.disabled = false;

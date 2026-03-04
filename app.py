@@ -33,6 +33,9 @@ except:
 MODEL_PATH = "models/nids_dcnn_model.h5"
 SCALER_PATH = "models/cicids_scaler.pkl"
 LABEL_MAP = {0: "BENIGN", 1: "ATTACK"}
+MAX_ROWS_PER_REQUEST = 30000
+PREDICT_BATCH_SIZE = 128
+MAX_DOWNLOAD_ROWS = 1500
 
 # ─── App setup ───────────────────────────────────────────────────────────────
 app = FastAPI(title="Sentinel AI – NIDS Backend")
@@ -135,6 +138,13 @@ async def predict(file: UploadFile = File(...)):
         df.columns = df.columns.str.strip()
         total_rows = len(df)
 
+        if total_rows == 0:
+            raise ValueError("Uploaded CSV is empty.")
+        if total_rows > MAX_ROWS_PER_REQUEST:
+            raise ValueError(
+                f"Too many rows ({total_rows}). Max allowed is {MAX_ROWS_PER_REQUEST} rows."
+            )
+
         # Keep a copy of the original data before preprocessing for display
         original_df = df.copy()
 
@@ -154,20 +164,19 @@ async def predict(file: UploadFile = File(...)):
 
         processed = processed[expected_features]
 
-        # 3. Scale + reshape for Conv1D ───────────────────────────────────
-        scaled = scaler.transform(processed)
-        X_input = scaled.reshape(scaled.shape[0], scaled.shape[1], 1)
+        # 3-4. Scale + predict in chunks (avoid full-array memory spikes) ──
+        predicted_chunks = []
+        confidence_chunks = []
+        for i in range(0, total_rows, PREDICT_BATCH_SIZE):
+            batch_df = processed.iloc[i:i + PREDICT_BATCH_SIZE]
+            scaled_batch = scaler.transform(batch_df)
+            x_batch = scaled_batch.reshape(scaled_batch.shape[0], scaled_batch.shape[1], 1)
+            batch_preds = model.predict(x_batch, verbose=0)
+            predicted_chunks.append(np.argmax(batch_preds, axis=1))
+            confidence_chunks.append(np.max(batch_preds, axis=1))
 
-        # 4. Predict (batch for memory efficiency) ───────────────────────────
-        batch_size = 128  # Process in chunks to avoid memory spikes
-        predictions_list = []
-        for i in range(0, len(X_input), batch_size):
-            batch = X_input[i:i+batch_size]
-            batch_preds = model.predict(batch, verbose=0)
-            predictions_list.append(batch_preds)
-        predictions = np.vstack(predictions_list)
-        predicted_classes = np.argmax(predictions, axis=1)
-        confidence_scores = np.max(predictions, axis=1)
+        predicted_classes = np.concatenate(predicted_chunks)
+        confidence_scores = np.concatenate(confidence_chunks)
 
         # 5. Summary statistics ───────────────────────────────────────────
         n_benign = int((predicted_classes == 0).sum())
@@ -220,12 +229,14 @@ async def predict(file: UploadFile = File(...)):
             row["Confidence"] = round(float(confidence_scores[i]), 4)
             results_rows.append(row)
 
-        # 9. Build CSV string for download ────────────────────────────────
+        # 9. Build CSV string for download (capped to keep response small) ─
+        download_limit = min(MAX_DOWNLOAD_ROWS, total_rows)
+        download_slice = original_df.iloc[:download_limit]
         download_data = {}
         for col in display_columns:
-            download_data[col] = original_df[col].tolist()
-        download_data["Prediction"] = [LABEL_MAP[c] for c in predicted_classes]
-        download_data["Confidence"] = [round(float(s), 4) for s in confidence_scores]
+            download_data[col] = download_slice[col].tolist()
+        download_data["Prediction"] = [LABEL_MAP[int(c)] for c in predicted_classes[:download_limit]]
+        download_data["Confidence"] = [round(float(s), 4) for s in confidence_scores[:download_limit]]
         download_df = pd.DataFrame(download_data)
 
         return {
@@ -241,6 +252,7 @@ async def predict(file: UploadFile = File(...)):
             "conf_histogram": conf_histogram,
             "columns": display_columns,
             "results": results_rows,
+            "download_rows": download_limit,
             "csv_download": download_df.to_csv(index=False),
         }
 
