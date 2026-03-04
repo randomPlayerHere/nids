@@ -1,6 +1,6 @@
 """
 Network Intrusion Detection System (NIDS) - Streamlit Interface
-Provides an intuitive web interface for network traffic analysis using DCNN
+Deep Convolutional Neural Network for network traffic analysis using CICIDS2017 dataset
 """
 
 import streamlit as st
@@ -30,22 +30,22 @@ def preprocess_inference(df):
 
 # --- Page Configuration ---
 st.set_page_config(
-    page_title="NIDS Deep Learning Demo",
-    page_icon="🛡️",
+    page_title="Network Intrusion Detection System",
+    page_icon="shield",
     layout="wide"
 )
 
-st.title("🛡️ Network Intrusion Detection System (DCNN)")
+st.title("Network Intrusion Detection System")
 st.markdown("""
-Upload a CSV file containing network traffic flows to detect malicious activity.
-The system uses a Deep Convolutional Neural Network trained on the CICIDS2017 dataset.
+Analyze network traffic flows for malicious activity using a Deep Convolutional Neural Network
+trained on the CICIDS2017 dataset.
 """)
 
 # --- Constants ---
 MODEL_PATH = 'models/nids_dcnn_model.h5'
 SCALER_PATH = 'models/cicids_scaler.pkl'
 COLUMNS_TO_DROP = ['Flow ID', 'Source IP', 'Destination IP', 'Timestamp', 'Label']
-LABEL_MAP = {0: "✅ BENIGN", 1: "🚨 ATTACK"}
+LABEL_MAP = {0: "BENIGN", 1: "ATTACK"}
 
 # --- Load Model and Scaler ---
 @st.cache_resource
@@ -68,63 +68,71 @@ def load_nids_assets():
 model, scaler, error = load_nids_assets()
 
 if error:
-    st.error(f"❌ Failed to load ML assets: {error}")
+    st.error(f"Failed to load ML assets: {error}")
     st.stop()
 else:
-    st.success("✅ Model and Scaler loaded successfully!")
+    st.success("Model and Scaler loaded successfully")
 
 # --- Sidebar Information ---
 with st.sidebar:
-    st.header("ℹ️ About")
+    st.header("About")
     st.markdown("""
-    **NIDS DCNN Model**
+    **Model Details**
     - Architecture: 1D Convolutional Neural Network
     - Dataset: CICIDS2017
-    - Classes: Binary (BENIGN vs ATTACK)
+    - Task: Binary Classification (Benign vs Attack)
     
-    **Expected Input:**
+    **Expected Input**
     - CSV file with network flow features
-    - Same features as training data
-    - Columns like Duration, Flow Bytes/s, etc.
+    - Same feature set as training data
+    - Standard network flow columns
     
-    **Columns Automatically Dropped:**
+    **Auto-Dropped Columns**
     - Flow ID
     - Source IP
     - Destination IP  
     - Timestamp
-    - Label (if present)
+    - Label
     """)
     
-    st.header("📊 Expected Features")
-    st.info(f"The model expects **{scaler.n_features_in_}** features after preprocessing")
+    st.header("Model Configuration")
+    st.info(f"Expected features: {scaler.n_features_in_}")
 
 # --- Main Interface ---
 st.divider()
 
 # File uploader
 uploaded_file = st.file_uploader(
-    "📁 Upload Network Traffic CSV File",
+    "Upload Network Traffic CSV File",
     type=["csv"],
-    help="Upload a CSV file containing network flow data"
+    help="CSV file containing network flow data"
 )
 
 if uploaded_file is not None:
     try:
         # Read CSV
-        with st.spinner("📖 Reading CSV file..."):
+        with st.spinner("Reading CSV file..."):
             df = pd.read_csv(uploaded_file)
         
+        # Display basic info
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Flows", f"{len(df):,}")
+        with col2:
+            st.metric("Total Columns", len(df.columns))
+        with col3:
+            st.metric("File Size", f"{uploaded_file.size / 1024:.2f} KB")
         
         # Show sample of uploaded data
-        with st.expander("🔍 View Uploaded Data (First 5 Rows)"):
-            st.dataframe(df.head(), use_container_width=True)
+        with st.expander("View Uploaded Data"):
+            st.dataframe(df.head(10), use_container_width=True)
         
         # Store original for display
         display_df = df.copy()
         
         # --- Preprocessing ---
         st.divider()
-        st.subheader("⚙️ Preprocessing")
+        st.subheader("Data Processing")
         
         with st.spinner("Processing features..."):
             # Strip whitespace from column names
@@ -140,7 +148,7 @@ if uploaded_file is not None:
             # Check if we have the right number of features
             if actual_features != expected_features:
                 st.error(f"""
-                ❌ **Feature Mismatch!**
+                Feature Mismatch:
                 - Expected: {expected_features} features
                 - Got: {actual_features} features
                 
@@ -153,18 +161,16 @@ if uploaded_file is not None:
             extra_cols = set(df.columns) - set(expected_feature_names)
             
             if missing_cols:
-                st.error(f"""
-                ❌ **Missing columns**: {', '.join(list(missing_cols)[:10])}
-                """)
+                st.error(f"Missing columns: {', '.join(list(missing_cols)[:10])}")
                 st.stop()
             
             if extra_cols:
-                st.warning(f"⚠️ Extra columns will be ignored: {', '.join(list(extra_cols)[:10])}")
+                st.info(f"Extra columns ignored: {', '.join(list(extra_cols)[:5])}")
             
             # Reorder columns to match training order
             df = df[expected_feature_names]
             
-            st.success(f"✅ Validated {expected_features} features in correct order")
+            st.success(f"Validated {expected_features} features in correct order")
     
             # Scale features
             scaled_features = scaler.transform(df)
@@ -174,11 +180,11 @@ if uploaded_file is not None:
             num_features = scaled_features.shape[1]
             X_input = scaled_features.reshape(num_samples, num_features, 1)
             
-            st.success(f"✅ Data preprocessed and ready for inference")
+            st.success("Data preprocessed and ready for inference")
         
         # --- Prediction ---
         st.divider()
-        st.subheader("🔮 Making Predictions")
+        st.subheader("Model Inference")
         
         with st.spinner("Running DCNN model..."):
             # Predict
@@ -196,7 +202,7 @@ if uploaded_file is not None:
         
         # --- Results Display ---
         st.divider()
-        st.subheader("📊 Results")
+        st.subheader("Analysis Results")
         
         # Summary metrics
         n_benign = (predicted_classes == 0).sum()
@@ -205,10 +211,10 @@ if uploaded_file is not None:
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("✅ Benign Traffic", n_benign, 
+            st.metric("Benign Traffic", n_benign, 
                      delta=f"{(n_benign/num_samples)*100:.1f}%")
         with col2:
-            st.metric("🚨 Attacks Detected", n_attack,
+            st.metric("Attacks Detected", n_attack,
                      delta=f"{attack_percentage:.1f}%",
                      delta_color="inverse")
         with col3:
@@ -216,7 +222,7 @@ if uploaded_file is not None:
             st.metric("Average Confidence", f"{avg_confidence:.2%}")
         
         # Visualization
-        st.subheader("📈 Distribution")
+        st.subheader("Distribution Analysis")
         
         col1, col2 = st.columns(2)
         
@@ -231,21 +237,20 @@ if uploaded_file is not None:
         with col2:
             # Percentage display
             st.markdown(f"""
-            ### Attack Rate
-            <div style="font-size: 48px; text-align: center; color: {'red' if attack_percentage > 50 else 'green'};">
-                {attack_percentage:.1f}%
-            </div>
-            """, unsafe_allow_html=True)
+            **Attack Rate**
+            
+            **{attack_percentage:.1f}%**
+            """)
         
-        # Detailed results table
-        st.subheader("🔍 Analytics Report")
+        # Detailed analytics report
+        st.subheader("Analytics Report")
         
         # Key Statistics
-        st.markdown("#### 📊 Key Statistics")
+        st.markdown("**Key Statistics**")
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.metric("Total Flows Analyzed", f"{num_samples:,}")
+            st.metric("Total Flows", f"{num_samples:,}")
         with col2:
             st.metric("Unique Predictions", len(set(predicted_classes)))
         with col3:
@@ -256,7 +261,7 @@ if uploaded_file is not None:
             st.metric("Max Confidence", f"{max_conf:.2%}")
         
         # Distribution Analysis
-        st.markdown("#### 📈 Prediction Distribution")
+        st.markdown("**Prediction Distribution**")
         col1, col2 = st.columns(2)
         
         with col1:
@@ -265,9 +270,9 @@ if uploaded_file is not None:
         
         with col2:
             # Confidence distribution
-            st.markdown("**Confidence Score Distribution**")
+            st.markdown("**Confidence Score Ranges**")
             conf_df = pd.DataFrame({
-                'Confidence Range': ['90-100%', '80-90%', '70-80%', '60-70%', '<60%'],
+                'Range': ['90-100%', '80-90%', '70-80%', '60-70%', '<60%'],
                 'Count': [
                     ((confidence_scores >= 0.9) & (confidence_scores <= 1.0)).sum(),
                     ((confidence_scores >= 0.8) & (confidence_scores < 0.9)).sum(),
@@ -276,95 +281,89 @@ if uploaded_file is not None:
                     (confidence_scores < 0.6).sum()
                 ]
             })
-            st.bar_chart(conf_df.set_index('Confidence Range'))
+            st.bar_chart(conf_df.set_index('Range'))
         
         # Sample of results
-        st.markdown("#### 🔬 Sample Results")
+        st.markdown("**Sample Results**")
         
-        tab1, tab2, tab3 = st.tabs(["📋 All Samples", "🚨 Attack Samples", "✅ Benign Samples"])
+        tab1, tab2, tab3 = st.tabs(["All Flows", "Attack Flows", "Benign Flows"])
         
         with tab1:
             st.dataframe(display_df.head(100), use_container_width=True, height=300)
-            st.info(f"Showing first 100 of {len(display_df):,} total flows")
+            st.caption(f"Showing first 100 of {len(display_df):,} total flows")
         
         with tab2:
-            attack_samples = display_df[display_df['Prediction'] == "🚨 ATTACK"]
+            attack_samples = display_df[display_df['Prediction'] == "ATTACK"]
             if len(attack_samples) > 0:
                 st.dataframe(attack_samples.head(100), use_container_width=True, height=300)
-                st.info(f"Showing first 100 of {len(attack_samples):,} attack flows")
+                st.caption(f"Showing first 100 of {len(attack_samples):,} attack flows")
             else:
-                st.success("No attacks detected!")
+                st.info("No attacks detected")
         
         with tab3:
-            benign_samples = display_df[display_df['Prediction'] == "✅ BENIGN"]
+            benign_samples = display_df[display_df['Prediction'] == "BENIGN"]
             if len(benign_samples) > 0:
                 st.dataframe(benign_samples.head(100), use_container_width=True, height=300)
-                st.info(f"Showing first 100 of {len(benign_samples):,} benign flows")
+                st.caption(f"Showing first 100 of {len(benign_samples):,} benign flows")
             else:
-                st.warning("No benign traffic detected!")
+                st.info("No benign traffic detected")
         
         # Risk Assessment
-        st.markdown("#### ⚠️ Risk Assessment")
+        st.markdown("**Risk Assessment**")
         
         if attack_percentage > 75:
-            risk_level = "🔴 CRITICAL"
-            risk_color = "red"
-            risk_msg = "Severe attack detected! Immediate action required."
+            risk_level = "CRITICAL"
+            risk_msg = "Severe attack detected. Immediate action required."
         elif attack_percentage > 50:
-            risk_level = "🟠 HIGH"
-            risk_color = "orange"
+            risk_level = "HIGH"
             risk_msg = "High volume of malicious traffic detected."
         elif attack_percentage > 25:
-            risk_level = "🟡 MEDIUM"
-            risk_color = "orange"
+            risk_level = "MEDIUM"
             risk_msg = "Moderate attack activity detected."
         elif attack_percentage > 5:
-            risk_level = "🟢 LOW"
-            risk_color = "green"
+            risk_level = "LOW"
             risk_msg = "Minor attack activity detected."
         else:
-            risk_level = "🟢 MINIMAL"
-            risk_color = "green"
+            risk_level = "MINIMAL"
             risk_msg = "Network appears secure with minimal threats."
         
         st.markdown(f"""
-        <div style="padding: 20px; border-radius: 10px; background-color: rgba(255,255,255,0.1); border-left: 5px solid {risk_color};">
-            <h3 style="color: {risk_color};">{risk_level}</h3>
-            <p style="font-size: 16px;">{risk_msg}</p>
-            <p><strong>Attack Rate:</strong> {attack_percentage:.2f}%</p>
-            <p><strong>Average Confidence:</strong> {confidence_scores.mean():.2%}</p>
-        </div>
-        """, unsafe_allow_html=True)
+        **Risk Level: {risk_level}**
+        
+        {risk_msg}
+        
+        - Attack Rate: {attack_percentage:.2f}%
+        - Average Confidence: {confidence_scores.mean():.2%}
+        """)
         
         # Download results
         st.divider()
-        csv_results = filtered_df.to_csv(index=False)
+        csv_results = display_df.to_csv(index=False)
         st.download_button(
-            label="📥 Download Results as CSV",
+            label="Download Results as CSV",
             data=csv_results,
             file_name="nids_predictions.csv",
             mime="text/csv"
         )
         
     except Exception as e:
-        st.error(f"❌ An error occurred: {str(e)}")
-        with st.expander("🐛 View Error Details"):
+        st.error(f"An error occurred: {str(e)}")
+        with st.expander("Error Details"):
             st.code(traceback.format_exc())
 
 else:
-    # Show example data format
-    st.info("👆 Upload a CSV file to begin analysis")
+    st.info("Upload a CSV file to begin analysis")
     
-    with st.expander("📋 Example CSV Format"):
+    with st.expander("Expected CSV Format"):
         st.markdown("""
-        Your CSV should contain network flow features like:
+        Your CSV should contain network flow features such as:
         - Duration
         - Protocol
         - Flow Bytes/s
         - Flow Packets/s
         - Flow IAT Mean
         - Fwd IAT Mean
-        - ... and other CICIDS2017 features
+        - And other CICIDS2017 features
         
         The system will automatically remove identifier columns (Flow ID, IPs, Timestamp).
         """)
@@ -373,6 +372,6 @@ else:
 st.divider()
 st.markdown("""
 <div style="text-align: center; color: gray; font-size: 12px;">
-    <p>🛡️ NIDS DCNN v1.0 | Built with Streamlit + TensorFlow</p>
+    <p>Network Intrusion Detection System DCNN v1.0 | TensorFlow + Streamlit</p>
 </div>
 """, unsafe_allow_html=True)

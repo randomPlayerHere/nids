@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Sentinel AI: Network Analysis Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0df259",
+                        "background-light": "#f5f8f6",
+                        "background-dark": "#102216",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #316843;
+            border-radius: 10px;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .drag-over {
+            border-color: #0df259 !important;
+            background: rgba(13, 242, 89, 0.08) !important;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .icon-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        .icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .icon svg {
+            width: 1em;
+            height: 1em;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen font-display flex flex-col">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex flex-col flex-1">
+
+        <!-- Header -->
+        <header
+            class="flex flex-col md:flex-row items-center justify-between gap-4 mb-8 pb-6 border-b border-primary/10">
+            <div class="flex items-center gap-3">
+                <div class="bg-primary/20 p-2 rounded-lg">
+                    <svg class="w-8 h-8 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        <path d="M9 12l2 2 4-4" stroke-width="2.5" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Sentinel AI</h1>
+                    <p class="text-xs font-medium text-slate-500 dark:text-primary/60 tracking-widest uppercase">Network
+                        Analysis Dashboard</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div id="model-status"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+                    <span class="relative flex h-2 w-2">
+                        <span id="status-ping"
+                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                    </span>
+                    <span id="status-text" class="text-xs font-bold text-primary">Checking...</span>
+                </div>
+                <div
+                    class="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
+                    <svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M20 21a8 8 0 10-16 0" />
+                    </svg>
+                </div>
+            </div>
+        </header>
+
+        <main class="space-y-6 flex-1 flex flex-col" id="main-content">
+
+            <!-- Upload & Progress Section — stretches to fill viewport before results -->
+            <div id="upload-section" class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
+                <!-- Upload Zone -->
+                <div id="upload-zone"
+                    class="lg:col-span-2 bg-white dark:bg-white/5 border-2 border-dashed border-slate-200 dark:border-primary/10 rounded-xl p-6 flex flex-col justify-center items-center group cursor-pointer hover:border-primary/40 transition-all">
+                    <input type="file" id="csv-input" accept=".csv" class="hidden" />
+                    <div class="flex flex-col items-center gap-4 text-center">
+                        <div
+                            class="size-16 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                            <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                                <polyline points="17 8 12 3 7 8" />
+                                <line x1="12" y1="3" x2="12" y2="15" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-xl font-bold">Upload CSV for Analysis</p>
+                            <p id="file-name-display" class="text-sm text-slate-500 dark:text-slate-400 mt-1">Drag and
+                                drop your network flow data here or click to browse</p>
+                        </div>
+                        <button id="select-file-btn"
+                            class="mt-2 px-8 py-2.5 bg-primary text-background-dark text-sm font-bold rounded-lg hover:opacity-90 transition-opacity">
+                            Select File
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Panel -->
+                <div
+                    class="bg-white dark:bg-white/5 border border-slate-200 dark:border-primary/10 rounded-xl p-6 flex flex-col justify-center">
+                    <div class="space-y-4">
+                        <!-- Preprocessing progress -->
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium flex items-center gap-2">
+                                <span id="preprocess-icon" class="icon text-slate-500 text-sm">
+                                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                    </svg>
+                                </span>
+                                Preprocessing...
+                            </span>
+                            <span id="preprocess-pct" class="text-xs font-bold text-slate-500">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-200 dark:bg-primary/10 h-1.5 rounded-full overflow-hidden">
+                            <div id="preprocess-bar"
+                                class="bg-primary/40 h-full rounded-full transition-all duration-500"
+                                style="width: 0%;"></div>
+                        </div>
+                        <!-- Model inference progress -->
+                        <div class="flex justify-between items-center mt-6">
+                            <span class="text-sm font-medium flex items-center gap-2">
+                                <span id="model-icon" class="icon text-slate-500 text-sm">
+                                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                    </svg>
+                                </span>
+                                Running ML Model...
+                            </span>
+                            <span id="model-pct" class="text-xs font-medium text-slate-400">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-200 dark:bg-primary/10 h-1.5 rounded-full overflow-hidden">
+                            <div id="model-bar" class="bg-primary/40 h-full rounded-full transition-all duration-500"
+                                style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section (initially hidden) -->
+            <div id="results-section" class="space-y-6 hidden fade-in">
+
+                <!-- Risk Assessment Box -->
+                <div id="risk-box"
+                    class="bg-primary/5 border-l-4 border-primary p-6 rounded-r-xl flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div id="risk-badge"
+                            class="bg-primary text-background-dark font-black text-xl px-4 py-2 rounded-lg">—</div>
+                        <div>
+                            <h3 class="text-lg font-bold text-primary">Risk Assessment</h3>
+                            <p id="risk-message" class="text-sm text-slate-600 dark:text-slate-300">Awaiting analysis...
+                            </p>
+                        </div>
+                    </div>
+                    <svg class="w-10 h-10 text-primary hidden md:block" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        <path d="M9 12l2 2 4-4" stroke-width="2.5" />
+                    </svg>
+                </div>
+
+                <!-- Summary Analytics Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white dark:bg-white/5 border border-slate-200 dark:border-primary/10 rounded-xl p-6">
+                        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Total Flows Processed</p>
+                        <div class="flex items-baseline gap-2">
+                            <h4 id="stat-total" class="text-3xl font-bold">—</h4>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-white dark:bg-white/5 border border-slate-200 dark:border-primary/10 rounded-xl p-6 relative overflow-hidden">
+                        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Attack Rate</p>
+                        <div class="flex items-baseline gap-2">
+                            <h4 id="stat-attack-rate" class="text-3xl font-bold">—</h4>
+                            <span class="text-xs font-medium text-slate-400">Detected Threats</span>
+                        </div>
+                        <div class="absolute bottom-0 left-0 h-1 bg-primary/20 w-full">
+                            <div id="attack-rate-bar" class="bg-primary h-full" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-white/5 border border-slate-200 dark:border-primary/10 rounded-xl p-6">
+                        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Average Confidence</p>
+                        <div class="flex items-baseline gap-2">
+                            <h4 id="stat-confidence" class="text-3xl font-bold text-primary">—</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visual Analysis Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Bar Chart: Attack vs Benign -->
+                    <div class="bg-white dark:bg-white/5 border border-slate-200 dark:border-primary/10 rounded-xl p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold">Distribution: Attack vs Benign</h3>
+                            <span class="text-xs font-medium text-primary">Real-time</span>
+                        </div>
+                        <div class="flex items-end justify-center gap-8 h-48 px-4">
+                            <div class="flex flex-col items-center gap-2 w-full max-w-[120px]">
+                                <div id="bar-benign"
+                                    class="w-full bg-primary/10 border-t-2 border-primary rounded-t-sm transition-all duration-700"
+                                    style="height: 10%;"></div>
+                                <span id="label-benign"
+                                    class="text-xs font-bold text-slate-400 uppercase tracking-tighter">Benign
+                                    (—)</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2 w-full max-w-[120px]">
+                                <div id="bar-attack"
+                                    class="w-full bg-red-500/20 border-t-2 border-red-500 rounded-t-sm transition-all duration-700"
+                                    style="height: 10%;"></div>
+                                <span id="label-attack"
+                                    class="text-xs font-bold text-slate-400 uppercase tracking-tighter">Attack
+                                    (—)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Confidence Score Histogram -->
+                    <div class="bg-white dark:bg-white/5 border border-slate-200 dark:border-primary/10 rounded-xl p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold">Confidence Score Histogram</h3>
+                            <span class="text-xs font-medium text-slate-400">Distribution</span>
+                        </div>
+                        <div class="flex items-end justify-between gap-1 h-40 px-2" id="histogram-container"></div>
+                        <div class="flex justify-between mt-2 px-1">
+                            <span class="text-[10px] font-bold text-slate-500">&lt;60%</span>
+                            <span class="text-[10px] font-bold text-slate-500">60-70%</span>
+                            <span class="text-[10px] font-bold text-slate-500">70-80%</span>
+                            <span class="text-[10px] font-bold text-slate-500">80-90%</span>
+                            <span class="text-[10px] font-bold text-slate-500">90-100%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sample Results Table -->
+                <div
+                    class="bg-white dark:bg-white/5 border border-slate-200 dark:border-primary/10 rounded-xl overflow-hidden">
+                    <div
+                        class="px-6 py-4 border-b border-slate-200 dark:border-primary/10 flex items-center justify-between">
+                        <h3 class="font-bold">Sample Results <span id="page-info"
+                                class="text-sm font-normal text-slate-400"></span></h3>
+                        <div class="flex gap-2">
+                            <button id="btn-prev"
+                                class="size-8 rounded bg-primary/10 flex items-center justify-center text-primary disabled:opacity-30"
+                                disabled>
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
+                                    <polyline points="15 18 9 12 15 6" />
+                                </svg>
+                            </button>
+                            <button id="btn-next"
+                                class="size-8 rounded bg-primary text-background-dark flex items-center justify-center disabled:opacity-30"
+                                disabled>
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
+                                    <polyline points="9 18 15 12 9 6" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left text-sm">
+                            <thead id="results-thead">
+                                <tr class="bg-slate-50 dark:bg-primary/5 text-slate-500 dark:text-slate-400">
+                                    <th class="px-6 py-3 font-semibold uppercase tracking-wider">Flow #</th>
+                                    <th class="px-6 py-3 font-semibold uppercase tracking-wider">Label</th>
+                                    <th class="px-6 py-3 font-semibold uppercase tracking-wider">Confidence</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-tbody" class="divide-y divide-slate-100 dark:divide-primary/5"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Download Button -->
+                <div class="flex justify-center">
+                    <button id="download-btn"
+                        class="px-6 py-3 bg-primary/10 border border-primary/20 text-primary font-bold rounded-lg hover:bg-primary/20 transition-all flex items-center gap-2">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        Download Results as CSV
+                    </button>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Footer -->
+        <footer
+            class="mt-12 pt-8 border-t border-slate-200 dark:border-primary/10 flex flex-col md:flex-row justify-between items-center gap-4 text-slate-500 dark:text-slate-400 text-xs">
+            <p>&copy; 2023 Sentinel AI. All security protocols active.</p>
+            <div class="flex items-center gap-1">
+                <span>Powered by</span>
+                <span
+                    class="font-bold text-slate-900 dark:text-slate-100 tracking-tighter uppercase italic">Antigravity</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // ─── SVG icon templates ─────────────────────────────────────────────────────
+        const ICON_CHECK = `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+        const ICON_SPIN = `<svg class="w-4 h-4 icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.2-8.56"/></svg>`;
+        const ICON_CIRCLE = `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`;
+
+        // ─── State ──────────────────────────────────────────────────────────────────
+        let allResults = [];
+        let displayColumns = [];
+        let csvDownloadStr = "";
+        let currentPage = 0;
+        const PAGE_SIZE = 10;
+
+        // ─── DOM refs ───────────────────────────────────────────────────────────────
+        const csvInput = document.getElementById("csv-input");
+        const uploadZone = document.getElementById("upload-zone");
+        const uploadSection = document.getElementById("upload-section");
+        const selectFileBtn = document.getElementById("select-file-btn");
+        const fileNameDisplay = document.getElementById("file-name-display");
+
+        const preprocessIcon = document.getElementById("preprocess-icon");
+        const preprocessPct = document.getElementById("preprocess-pct");
+        const preprocessBar = document.getElementById("preprocess-bar");
+
+        const modelIcon = document.getElementById("model-icon");
+        const modelPct = document.getElementById("model-pct");
+        const modelBar = document.getElementById("model-bar");
+
+        const resultsSection = document.getElementById("results-section");
+
+        // ─── 1. Check model health on load ─────────────────────────────────────────
+        (async function checkHealth() {
+            try {
+                const res = await fetch("/health");
+                const data = await res.json();
+                const dot = document.getElementById("status-dot");
+                const ping = document.getElementById("status-ping");
+                const text = document.getElementById("status-text");
+
+                if (data.status === "ready") {
+                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-primary";
+                    text.textContent = "Model Ready";
+                    text.className = "text-xs font-bold text-primary";
+                } else {
+                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-red-500";
+                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75";
+                    text.textContent = "Model Error";
+                    text.className = "text-xs font-bold text-red-500";
+                }
+            } catch {
+                document.getElementById("status-text").textContent = "Offline";
+            }
+        })();
+
+        // ─── 2. File selection ──────────────────────────────────────────────────────
+        selectFileBtn.addEventListener("click", (e) => { e.stopPropagation(); csvInput.click(); });
+        uploadZone.addEventListener("click", () => csvInput.click());
+
+        uploadZone.addEventListener("dragover", (e) => { e.preventDefault(); uploadZone.classList.add("drag-over"); });
+        uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag-over"));
+        uploadZone.addEventListener("drop", (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove("drag-over");
+            if (e.dataTransfer.files.length && e.dataTransfer.files[0].name.endsWith(".csv")) {
+                csvInput.files = e.dataTransfer.files;
+                handleFileSelected();
+            }
+        });
+        csvInput.addEventListener("change", handleFileSelected);
+
+        function handleFileSelected() {
+            if (!csvInput.files.length) return;
+            const file = csvInput.files[0];
+            fileNameDisplay.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+            selectFileBtn.textContent = "Analyzing...";
+            selectFileBtn.disabled = true;
+            runPrediction(file);
+        }
+
+        // ─── 3. Progress helpers ────────────────────────────────────────────────────
+        function setProgress(stage, pct) {
+            if (stage === "preprocess") {
+                preprocessBar.style.width = pct + "%";
+                preprocessPct.textContent = pct + "%";
+                if (pct >= 100) {
+                    preprocessIcon.innerHTML = ICON_CHECK;
+                    preprocessIcon.className = "icon text-primary text-sm";
+                    preprocessPct.className = "text-xs font-bold text-primary";
+                    preprocessBar.className = "bg-primary h-full rounded-full transition-all duration-500";
+                } else if (pct > 0) {
+                    preprocessIcon.innerHTML = ICON_SPIN;
+                    preprocessIcon.className = "icon text-primary text-sm";
+                    preprocessBar.className = "bg-primary/40 h-full rounded-full transition-all duration-500";
+                }
+            } else {
+                modelBar.style.width = pct + "%";
+                modelPct.textContent = pct === 100 ? "Done" : pct + "%";
+                if (pct >= 100) {
+                    modelIcon.innerHTML = ICON_CHECK;
+                    modelIcon.className = "icon text-primary text-sm";
+                    modelPct.className = "text-xs font-bold text-primary";
+                    modelBar.className = "bg-primary h-full rounded-full transition-all duration-500";
+                } else if (pct > 0) {
+                    modelIcon.innerHTML = ICON_SPIN;
+                    modelIcon.className = "icon text-primary text-sm";
+                    modelBar.className = "bg-primary/40 h-full rounded-full transition-all duration-500";
+                }
+            }
+        }
+
+        function resetProgress() {
+            setProgress("preprocess", 0);
+            setProgress("model", 0);
+            preprocessIcon.innerHTML = ICON_CIRCLE;
+            preprocessIcon.className = "icon text-slate-500 text-sm";
+            preprocessPct.className = "text-xs font-bold text-slate-500";
+            modelIcon.innerHTML = ICON_CIRCLE;
+            modelIcon.className = "icon text-slate-500 text-sm";
+            modelPct.className = "text-xs font-medium text-slate-400";
+        }
+
+        // ─── 4. Main prediction flow ────────────────────────────────────────────────
+        async function runPrediction(file) {
+            resetProgress();
+            resultsSection.classList.add("hidden");
+
+            setProgress("preprocess", 30);
+            await sleep(300);
+            setProgress("preprocess", 70);
+            await sleep(200);
+            setProgress("preprocess", 100);
+            await sleep(200);
+            setProgress("model", 20);
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                setProgress("model", 50);
+                const res = await fetch("/predict", { method: "POST", body: formData });
+
+                if (!res.ok) {
+                    const errText = await res.text();
+                    throw new Error(errText);
+                }
+
+                setProgress("model", 90);
+                const data = await res.json();
+                setProgress("model", 100);
+
+                await sleep(300);
+
+                // Shrink upload section back to auto after results load
+                uploadSection.classList.remove("flex-1");
+                renderResults(data);
+
+            } catch (err) {
+                console.error(err);
+                alert("Analysis failed: " + err.message);
+            } finally {
+                selectFileBtn.textContent = "Select File";
+                selectFileBtn.disabled = false;
+            }
+        }
+
+        // ─── 5. Render results ──────────────────────────────────────────────────────
+        function renderResults(data) {
+            resultsSection.classList.remove("hidden");
+
+            const riskBadge = document.getElementById("risk-badge");
+            const riskMsg = document.getElementById("risk-message");
+            riskBadge.textContent = data.risk_level;
+            riskMsg.textContent = data.risk_message;
+
+            const riskColors = { CRITICAL: "bg-red-600", HIGH: "bg-red-500", MEDIUM: "bg-yellow-500", LOW: "bg-primary", MINIMAL: "bg-primary" };
+            riskBadge.className = `${riskColors[data.risk_level] || "bg-primary"} text-background-dark font-black text-xl px-4 py-2 rounded-lg`;
+
+            document.getElementById("stat-total").textContent = data.total_flows.toLocaleString();
+            document.getElementById("stat-attack-rate").textContent = data.attack_pct + "%";
+            document.getElementById("attack-rate-bar").style.width = Math.min(data.attack_pct, 100) + "%";
+            document.getElementById("stat-confidence").textContent = data.avg_confidence + "%";
+
+            const total = data.n_benign + data.n_attack;
+            const benignPct = total > 0 ? (data.n_benign / total) * 100 : 50;
+            const attackPct = total > 0 ? (data.n_attack / total) * 100 : 50;
+            document.getElementById("bar-benign").style.height = Math.max(benignPct, 3) + "%";
+            document.getElementById("bar-attack").style.height = Math.max(attackPct, 3) + "%";
+            document.getElementById("label-benign").textContent = `Benign (${data.n_benign.toLocaleString()})`;
+            document.getElementById("label-attack").textContent = `Attack (${data.n_attack.toLocaleString()})`;
+
+            renderHistogram(data.conf_histogram);
+
+            displayColumns = data.columns || [];
+            allResults = data.results;
+            csvDownloadStr = data.csv_download;
+            currentPage = 0;
+            buildTableHeader();
+            renderTable();
+
+            resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        // ─── 6. Histogram ───────────────────────────────────────────────────────────
+        function renderHistogram(hist) {
+            const container = document.getElementById("histogram-container");
+            container.innerHTML = "";
+            const keys = ["<60%", "60-70%", "70-80%", "80-90%", "90-100%"];
+            const vals = keys.map(k => hist[k] || 0);
+            const maxVal = Math.max(...vals, 1);
+
+            vals.forEach((v) => {
+                const pct = (v / maxVal) * 100;
+                const bar = document.createElement("div");
+                bar.className = "flex-1 rounded-t-sm transition-all duration-700";
+                bar.style.height = Math.max(pct, 2) + "%";
+                bar.style.background = "linear-gradient(to top, rgba(13,242,89,0.05), rgba(13,242,89,0.4))";
+                bar.style.borderTop = "2px solid #0df259";
+                bar.title = v + " flows";
+                container.appendChild(bar);
+            });
+        }
+
+        // ─── 7. Table rendering + pagination ────────────────────────────────────────
+        function buildTableHeader() {
+            const thead = document.getElementById("results-thead");
+            let headerHtml = '<tr class="bg-slate-50 dark:bg-primary/5 text-slate-500 dark:text-slate-400">';
+            headerHtml += '<th class="px-6 py-3 font-semibold uppercase tracking-wider text-center w-16">#</th>';
+            displayColumns.forEach(col => {
+                headerHtml += `<th class="px-6 py-3 font-semibold uppercase tracking-wider">${escHtml(col)}</th>`;
+            });
+            headerHtml += '<th class="px-6 py-3 font-semibold uppercase tracking-wider">Label</th>';
+            headerHtml += '<th class="px-6 py-3 font-semibold uppercase tracking-wider">Confidence</th>';
+            headerHtml += '</tr>';
+            thead.innerHTML = headerHtml;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById("results-tbody");
+            tbody.innerHTML = "";
+
+            const start = currentPage * PAGE_SIZE;
+            const end = Math.min(start + PAGE_SIZE, allResults.length);
+            const pageData = allResults.slice(start, end);
+
+            pageData.forEach((row, idx) => {
+                const tr = document.createElement("tr");
+                tr.className = "hover:bg-primary/5 transition-colors";
+
+                const isAttack = row.Label !== "BENIGN";
+                const labelClass = isAttack
+                    ? "px-2 py-1 rounded-full bg-red-500/20 text-red-500 text-[10px] font-bold"
+                    : "px-2 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-bold";
+                const confClass = isAttack ? "px-6 py-4 font-bold text-red-400" : "px-6 py-4 font-bold";
+
+                let cells = `<td class="px-6 py-4 text-center text-slate-500 tabular-nums">${start + idx + 1}</td>`;
+                displayColumns.forEach(col => {
+                    cells += `<td class="px-6 py-4 tabular-nums whitespace-nowrap">${escHtml(String(row[col] ?? "—"))}</td>`;
+                });
+                cells += `<td class="px-6 py-4"><span class="${labelClass}">${row.Label}</span></td>`;
+                cells += `<td class="${confClass}">${row.Confidence.toFixed(3)}</td>`;
+                tr.innerHTML = cells;
+                tbody.appendChild(tr);
+            });
+
+            const totalPages = Math.ceil(allResults.length / PAGE_SIZE);
+            document.getElementById("page-info").textContent = `Page ${currentPage + 1} of ${totalPages}`;
+
+            document.getElementById("btn-prev").disabled = currentPage === 0;
+            document.getElementById("btn-next").disabled = currentPage >= totalPages - 1;
+        }
+
+        document.getElementById("btn-prev").addEventListener("click", () => { if (currentPage > 0) { currentPage--; renderTable(); } });
+        document.getElementById("btn-next").addEventListener("click", () => {
+            const totalPages = Math.ceil(allResults.length / PAGE_SIZE);
+            if (currentPage < totalPages - 1) { currentPage++; renderTable(); }
+        });
+
+        // ─── 8. CSV download ────────────────────────────────────────────────────────
+        document.getElementById("download-btn").addEventListener("click", () => {
+            if (!csvDownloadStr) return;
+            const blob = new Blob([csvDownloadStr], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "nids_predictions.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // ─── Utilities ──────────────────────────────────────────────────────────────
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+        function escHtml(s) { const d = document.createElement("div"); d.textContent = s || "—"; return d.innerHTML; }
+    </script>
+</body>
+
+</html>
