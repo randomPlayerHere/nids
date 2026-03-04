@@ -16,6 +16,19 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
+# ─── TensorFlow memory optimization ──────────────────────────────────────────
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress TF info/warning logs
+try:
+    import tensorflow as tf
+    # Allow GPU memory to grow instead of allocating all at once
+    gpus = tf.config.list_physical_devices('GPU')
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+    # CPU optimization for inference
+    tf.config.run_functions_eagerly(False)
+except:
+    pass
+
 # ─── Constants ───────────────────────────────────────────────────────────────
 MODEL_PATH = "models/nids_dcnn_model.h5"
 SCALER_PATH = "models/cicids_scaler.pkl"
@@ -145,8 +158,14 @@ async def predict(file: UploadFile = File(...)):
         scaled = scaler.transform(processed)
         X_input = scaled.reshape(scaled.shape[0], scaled.shape[1], 1)
 
-        # 4. Predict ──────────────────────────────────────────────────────
-        predictions = model.predict(X_input, verbose=0)
+        # 4. Predict (batch for memory efficiency) ───────────────────────────
+        batch_size = 128  # Process in chunks to avoid memory spikes
+        predictions_list = []
+        for i in range(0, len(X_input), batch_size):
+            batch = X_input[i:i+batch_size]
+            batch_preds = model.predict(batch, verbose=0)
+            predictions_list.append(batch_preds)
+        predictions = np.vstack(predictions_list)
         predicted_classes = np.argmax(predictions, axis=1)
         confidence_scores = np.max(predictions, axis=1)
 
@@ -185,8 +204,8 @@ async def predict(file: UploadFile = File(...)):
         # Cap at 4 columns for readability
         display_columns = display_columns[:4]
 
-        # 8. Build sample results (top 100) ──────────────────────────────
-        limit = min(100, total_rows)
+        # 8. Build sample results (top 50 for memory efficiency) ─────────────
+        limit = min(50, total_rows)
         results_rows = []
         for i in range(limit):
             row = {}
