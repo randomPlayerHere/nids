@@ -17,20 +17,17 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # ─── TensorFlow memory optimization ──────────────────────────────────────────
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress TF info/warning logs
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow as tf
-    # Allow GPU memory to grow instead of allocating all at once
     gpus = tf.config.list_physical_devices('GPU')
     for gpu in gpus:
         tf.config.experimental.set_memory_growth(gpu, True)
-    # CPU optimization for inference
     tf.config.run_functions_eagerly(False)
 except:
     pass
 
 # ─── Constants ───────────────────────────────────────────────────────────────
-# Model paths (prefer TFLite if available for lower memory)
 TFLITE_MODEL_PATH = "models/nids_dcnn_model.tflite"
 H5_MODEL_PATH = "models/nids_dcnn_model.h5"
 SCALER_PATH = "models/cicids_scaler.pkl"
@@ -43,7 +40,7 @@ MAX_DOWNLOAD_ROWS = 500        # Cap CSV response size
 MAX_DISPLAY_ROWS = 30          # Rows to show in results table
 
 # ─── App setup ───────────────────────────────────────────────────────────────
-app = FastAPI(title="Sentinel AI – NIDS Backend")
+app = FastAPI(title="Sentinel AI - NIDS Backend")
 
 app.add_middleware(
     CORSMiddleware,
@@ -52,7 +49,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── Load model + scaler at startup ─────────────────────────────────────────
+# model loading and initial constants
 model = None
 tflite_interpreter = None
 scaler = None
@@ -72,25 +69,24 @@ def load_assets():
             tflite_interpreter = tf.lite.Interpreter(model_path=TFLITE_MODEL_PATH)
             tflite_interpreter.allocate_tensors()
             use_tflite = True
-            print("✅ TFLite model and scaler loaded successfully (low-memory mode)")
+            print("TFLite model and scaler loaded successfully (low-memory mode)")
         elif os.path.exists(H5_MODEL_PATH):
             from tensorflow.keras.models import load_model as keras_load
             model = keras_load(H5_MODEL_PATH)
             use_tflite = False
-            print("✅ Keras H5 model and scaler loaded successfully")
+            print("Keras H5 model and scaler loaded successfully")
         else:
             raise FileNotFoundError(f"No model found at {TFLITE_MODEL_PATH} or {H5_MODEL_PATH}")
 
         load_error = None
     except Exception as exc:
         load_error = str(exc)
-        print(f"❌ Failed to load ML assets: {load_error}")
+        print(f"Failed to load ML assets: {load_error}")
 
 load_assets()
 
-# ─── Preprocessing (mirrors streamlit_app.py) ───────────────────────────────
+# preprocessing
 def preprocess_inference(df: pd.DataFrame) -> pd.DataFrame:
-    """Drop identifiers, handle inf/NaN – same logic as the Streamlit version."""
     to_drop = ["Flow ID", "Source IP", "Destination IP", "Timestamp"]
     df = df.drop(columns=to_drop, errors="ignore")
     df = df.drop(columns=["Label"], errors="ignore")
@@ -98,7 +94,7 @@ def preprocess_inference(df: pd.DataFrame) -> pd.DataFrame:
     df.fillna(0, inplace=True)
     return df
 
-# ─── Risk assessment (mirrors streamlit_app.py) ─────────────────────────────
+# risk estimations
 def compute_risk(attack_pct: float):
     if attack_pct > 75:
         return "CRITICAL", "Severe attack detected. Immediate action required."
@@ -111,11 +107,10 @@ def compute_risk(attack_pct: float):
     else:
         return "MINIMAL", "Network appears secure with minimal threats."
 
-# ─── Routes ──────────────────────────────────────────────────────────────────
+#routes
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
-    """Serve the main dashboard HTML."""
     html_path = os.path.join(os.path.dirname(__file__), "code.html")
     with open(html_path, "r") as f:
         return HTMLResponse(content=f.read())
@@ -123,7 +118,6 @@ async def serve_frontend():
 
 @app.get("/health")
 async def health():
-    """Report whether the ML model is loaded and ready."""
     if load_error:
         return JSONResponse(
             status_code=503,
@@ -149,44 +143,34 @@ async def predict(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Only CSV files are accepted.")
 
     try:
-        # 1. Read CSV ─────────────────────────────────────────────────────
+        # Read csv
         contents = await file.read()
-        df = pd.read_csv(io.BytesIO(contents))
+        df = pd.read_csv(io.BytesIO(contents)) #creates an in-memoory file like object from the uploaded file contents
         df.columns = df.columns.str.strip()
         total_rows = len(df)
-
         if total_rows == 0:
             raise ValueError("Uploaded CSV is empty.")
         if total_rows > MAX_ROWS_PER_REQUEST:
             raise ValueError(
                 f"Too many rows ({total_rows}). Max allowed is {MAX_ROWS_PER_REQUEST} rows."
             )
-
         # Keep a copy of the original data before preprocessing for display
         original_df = df.copy()
-
-        # 2. Preprocess ───────────────────────────────────────────────────
         processed = preprocess_inference(df)
-
         expected_features = scaler.feature_names_in_
         if len(processed.columns) != len(expected_features):
             raise ValueError(
                 f"Feature mismatch: expected {len(expected_features)}, "
                 f"got {len(processed.columns)}"
             )
-
         missing = set(expected_features) - set(processed.columns)
         if missing:
             raise ValueError(f"Missing columns: {', '.join(list(missing)[:10])}")
-
         processed = processed[expected_features]
-
-        # 3-4. Scale + predict in chunks (avoid full-array memory spikes) ──
         predicted_chunks = []
         confidence_chunks = []
 
         if use_tflite:
-            # TFLite inference path (much lower memory)
             input_details = tflite_interpreter.get_input_details()
             output_details = tflite_interpreter.get_output_details()
 
@@ -195,7 +179,6 @@ async def predict(file: UploadFile = File(...)):
                 scaled_batch = scaler.transform(batch_df).astype(np.float32)
                 x_batch = scaled_batch.reshape(scaled_batch.shape[0], scaled_batch.shape[1], 1)
 
-                # TFLite requires fixed batch size; process row by row if needed
                 batch_preds = []
                 for row_idx in range(x_batch.shape[0]):
                     single_input = x_batch[row_idx:row_idx+1]
@@ -210,7 +193,6 @@ async def predict(file: UploadFile = File(...)):
                 predicted_chunks.append(np.argmax(batch_preds, axis=1))
                 confidence_chunks.append(np.max(batch_preds, axis=1))
         else:
-            # Keras H5 model inference path
             for i in range(0, total_rows, PREDICT_BATCH_SIZE):
                 batch_df = processed.iloc[i:i + PREDICT_BATCH_SIZE]
                 scaled_batch = scaler.transform(batch_df).astype(np.float32)
@@ -222,7 +204,6 @@ async def predict(file: UploadFile = File(...)):
         predicted_classes = np.concatenate(predicted_chunks)
         confidence_scores = np.concatenate(confidence_chunks)
 
-        # 5. Summary statistics ───────────────────────────────────────────
         n_benign = int((predicted_classes == 0).sum())
         n_attack = int((predicted_classes == 1).sum())
         attack_pct = round((n_attack / total_rows) * 100, 2) if total_rows else 0
@@ -232,7 +213,6 @@ async def predict(file: UploadFile = File(...)):
 
         risk_level, risk_msg = compute_risk(attack_pct)
 
-        # 6. Confidence histogram buckets ─────────────────────────────────
         conf_histogram = {
             "90-100%": int(((confidence_scores >= 0.9) & (confidence_scores <= 1.0)).sum()),
             "80-90%":  int(((confidence_scores >= 0.8) & (confidence_scores < 0.9)).sum()),
@@ -241,8 +221,6 @@ async def predict(file: UploadFile = File(...)):
             "<60%":    int((confidence_scores < 0.6).sum()),
         }
 
-        # 7. Pick the most useful columns for the results table ───────────
-        # Prefer network-identifiable columns, fall back to whatever exists
         preferred_cols = [
             "Source IP", "Destination IP", "Timestamp", "Protocol",
             "Destination Port", "Flow Duration", "Total Fwd Packets",
@@ -251,13 +229,10 @@ async def predict(file: UploadFile = File(...)):
             "Flow IAT Mean", "Fwd IAT Mean",
         ]
         display_columns = [c for c in preferred_cols if c in original_df.columns]
-        # If none matched, just take the first few columns
         if not display_columns:
             display_columns = list(original_df.columns[:4])
-        # Cap at 4 columns for readability
         display_columns = display_columns[:4]
 
-        # 8. Build sample results (top N for memory efficiency) ───────────────
         limit = min(MAX_DISPLAY_ROWS, total_rows)
         results_rows = []
         for i in range(limit):
@@ -273,7 +248,7 @@ async def predict(file: UploadFile = File(...)):
             row["Confidence"] = round(float(confidence_scores[i]), 4)
             results_rows.append(row)
 
-        # 9. Build CSV string for download (capped to keep response small) ─
+        # Build CSV string for download (capped to keep response small)
         download_limit = min(MAX_DOWNLOAD_ROWS, total_rows)
         download_slice = original_df.iloc[:download_limit]
         download_data = {}
@@ -307,6 +282,5 @@ async def predict(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-# ─── Run with: python app.py ─────────────────────────────────────────────────
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
