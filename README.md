@@ -289,11 +289,6 @@ Areas where contributions would be particularly valuable:
 - Performance optimization for edge deployment
 - Additional preprocessing options
 
----
-
-## License
-
-This project is released under the MIT License. See the LICENSE file for details.
 
 ---
 
@@ -308,21 +303,15 @@ This project builds upon the work of many researchers and open-source contributo
 
 ---
 
-## Citation
 
-If you use this project in your research, please consider citing the CICIDS2017 dataset:
 
-```bibtex
-@inproceedings{sharafaldin2018toward,
-  title={Toward Generating a New Intrusion Detection Dataset and Intrusion Traffic Characterization},
-  author={Sharafaldin, Iman and Lashkari, Arash Habibi and Ghorbani, Ali A.},
-  booktitle={Proceedings of the 4th International Conference on Information Systems Security and Privacy (ICISSP)},
-  pages={108--116},
-  year={2018}
-}
-```
+
+## License
+
+This project is released under the MIT License. See the LICENSE file for details.
 
 ---
+
 
 <div align="center">
 
