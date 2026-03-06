@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import joblib
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -114,6 +114,19 @@ async def serve_frontend():
     html_path = os.path.join(os.path.dirname(__file__), "code.html")
     with open(html_path, "r") as f:
         return HTMLResponse(content=f.read())
+
+
+@app.get("/sample-dataset")
+async def download_sample():
+    """Serve the sample test.csv for visitors to download."""
+    csv_path = os.path.join(os.path.dirname(__file__), "test.csv")
+    if not os.path.exists(csv_path):
+        raise HTTPException(status_code=404, detail="Sample dataset not found.")
+    return FileResponse(
+        csv_path,
+        media_type="text/csv",
+        filename="sample_network_data.csv",
+    )
 
 
 @app.get("/health")

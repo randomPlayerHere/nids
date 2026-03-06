@@ -5,7 +5,8 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>Sentinel AI: Network Analysis Dashboard</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230df259'%3E%3Cpath d='M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm-1 14.93l-3.5-3.5 1.41-1.41L11 14.1l5.09-5.09 1.41 1.41L11 16.93z'/%3E%3C/svg%3E" />
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230df259'%3E%3Cpath d='M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm-1 14.93l-3.5-3.5 1.41-1.41L11 14.1l5.09-5.09 1.41 1.41L11 16.93z'/%3E%3C/svg%3E" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
         rel="stylesheet" />
@@ -167,6 +168,34 @@
                             class="mt-2 px-8 py-2.5 bg-primary text-background-dark text-sm font-bold rounded-lg hover:opacity-90 transition-opacity">
                             Select File
                         </button>
+
+                        <!-- Sample Dataset Section -->
+                        <div class="flex items-center gap-3 w-full max-w-xs mt-2">
+                            <div class="flex-1 h-px bg-slate-200 dark:bg-primary/10"></div>
+                            <span
+                                class="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">or</span>
+                            <div class="flex-1 h-px bg-slate-200 dark:bg-primary/10"></div>
+                        </div>
+                        <div class="flex flex-col items-center gap-2">
+                            <button id="try-sample-btn"
+                                class="px-6 py-2.5 bg-primary/10 border border-primary/20 text-primary text-sm font-bold rounded-lg hover:bg-primary/20 transition-all flex items-center gap-2">
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                    <line x1="10" y1="9" x2="8" y2="9" />
+                                </svg>
+                                Try Sample Dataset
+                            </button>
+                            <p class="text-xs text-slate-400 dark:text-slate-500">
+                                No CSV? Use our sample network data to explore the platform
+                                <span class="mx-1">·</span>
+                                <a href="/sample-dataset" download class="text-primary hover:underline font-medium"
+                                    onclick="event.stopPropagation();">Download CSV</a>
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -443,6 +472,32 @@
             }
         });
         csvInput.addEventListener("change", handleFileSelected);
+
+        // ─── Try Sample Dataset ─────────────────────────────────────────────────
+        const trySampleBtn = document.getElementById("try-sample-btn");
+        trySampleBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            trySampleBtn.textContent = "Loading sample…";
+            trySampleBtn.disabled = true;
+            selectFileBtn.textContent = "Analyzing...";
+            selectFileBtn.disabled = true;
+
+            try {
+                const res = await fetch("/sample-dataset");
+                if (!res.ok) throw new Error("Failed to fetch sample dataset");
+                const blob = await res.blob();
+                const sampleFile = new File([blob], "sample_network_data.csv", { type: "text/csv" });
+                fileNameDisplay.textContent = `Selected: sample_network_data.csv (${(blob.size / 1024).toFixed(1)} KB)`;
+                runPrediction(sampleFile);
+            } catch (err) {
+                alert("Could not load sample dataset: " + err.message);
+                selectFileBtn.textContent = "Select File";
+                selectFileBtn.disabled = false;
+            } finally {
+                trySampleBtn.textContent = "Try Sample Dataset";
+                trySampleBtn.disabled = false;
+            }
+        });
 
         function handleFileSelected() {
             if (!csvInput.files.length) return;
