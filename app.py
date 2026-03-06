@@ -109,6 +109,12 @@ def compute_risk(attack_pct: float):
 
 #routes
 
+@app.head("/")
+async def head_root():
+    """Support HEAD requests for uptime monitoring services."""
+    return HTMLResponse(content="")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
     html_path = os.path.join(os.path.dirname(__file__), "code.html")
