@@ -30,7 +30,6 @@ df.columns
 df.columns = df.columns.str.strip()
 
 # %%
-# These columns were already dropped in this dataset
 to_drop = ['Flow ID', 'Source IP', 'Destination IP', 'Timestamp']
 df = df.drop(columns=to_drop,errors='ignore')
 
@@ -67,10 +66,8 @@ print(f"Dropped {before - after:,} rows")
 # ### Clipping Extreme Outliers
 
 # %%
-# Isolate feature columns (everything except the label)
 features = df.columns.difference(['Label'])
 
-# Clip extreme outliers to the 99th percentile to stabilize the neural network
 for col in features:
     upper_limit = df[col].quantile(0.99)
     df[col] = np.clip(df[col], a_min=None, a_max=upper_limit)
@@ -97,7 +94,6 @@ from imblearn.under_sampling import RandomUnderSampler
 X = df.drop('Label', axis=1)
 y = df['Label']
 
-# Balance the classes by randomly undersampling the majority class (BENIGN)
 rus = RandomUnderSampler(random_state=42)
 X_resampled, y_resampled = rus.fit_resample(X, y)
 
@@ -105,7 +101,6 @@ print("New class distribution:")
 print(y_resampled.value_counts())
 
 # %%
-# Assuming X_resampled is your scaled, balanced dataframe
 num_features = X_resampled.shape[1]
 
 # Reshape for Conv1D: (Samples, Features, 1)

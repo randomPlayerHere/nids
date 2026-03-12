@@ -1,8 +1,3 @@
-"""
-Network Intrusion Detection System (NIDS) - FastAPI Backend
-Replaces the Streamlit interface with a REST API + static HTML frontend.
-"""
-
 import os
 import io
 import traceback
@@ -16,7 +11,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-# ─── TensorFlow memory optimization ──────────────────────────────────────────
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow as tf
@@ -27,19 +21,16 @@ try:
 except:
     pass
 
-# ─── Constants ───────────────────────────────────────────────────────────────
 TFLITE_MODEL_PATH = "models/nids_dcnn_model.tflite"
 H5_MODEL_PATH = "models/nids_dcnn_model.h5"
 SCALER_PATH = "models/cicids_scaler.pkl"
 LABEL_MAP = {0: "BENIGN", 1: "ATTACK"}
 
-# ─── Memory optimization constants ───────────────────────────────────────────
 MAX_ROWS_PER_REQUEST = 10000   # Hard limit for low-memory tiers
 PREDICT_BATCH_SIZE = 64        # Smaller batches = less peak memory
 MAX_DOWNLOAD_ROWS = 500        # Cap CSV response size
 MAX_DISPLAY_ROWS = 30          # Rows to show in results table
 
-# ─── App setup ───────────────────────────────────────────────────────────────
 app = FastAPI(title="Sentinel AI - NIDS Backend")
 
 app.add_middleware(
@@ -49,7 +40,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# model loading and initial constants
 model = None
 tflite_interpreter = None
 scaler = None
@@ -63,7 +53,6 @@ def load_assets():
             raise FileNotFoundError(f"Scaler not found: {SCALER_PATH}")
         scaler = joblib.load(SCALER_PATH)
 
-        # Prefer TFLite for lower memory footprint
         if os.path.exists(TFLITE_MODEL_PATH):
             import tensorflow as tf
             tflite_interpreter = tf.lite.Interpreter(model_path=TFLITE_MODEL_PATH)
@@ -85,7 +74,6 @@ def load_assets():
 
 load_assets()
 
-# preprocessing
 def preprocess_inference(df: pd.DataFrame) -> pd.DataFrame:
     to_drop = ["Flow ID", "Source IP", "Destination IP", "Timestamp"]
     df = df.drop(columns=to_drop, errors="ignore")
@@ -94,7 +82,6 @@ def preprocess_inference(df: pd.DataFrame) -> pd.DataFrame:
     df.fillna(0, inplace=True)
     return df
 
-# risk estimations
 def compute_risk(attack_pct: float):
     if attack_pct > 75:
         return "CRITICAL", "Severe attack detected. Immediate action required."
@@ -107,11 +94,8 @@ def compute_risk(attack_pct: float):
     else:
         return "MINIMAL", "Network appears secure with minimal threats."
 
-#routes
-
 @app.head("/")
 async def head_root():
-    """Support HEAD requests for uptime monitoring services."""
     return HTMLResponse(content="")
 
 
@@ -124,7 +108,6 @@ async def serve_frontend():
 
 @app.get("/sample-dataset")
 async def download_sample():
-    """Serve the sample test.csv for visitors to download."""
     csv_path = os.path.join(os.path.dirname(__file__), "test.csv")
     if not os.path.exists(csv_path):
         raise HTTPException(status_code=404, detail="Sample dataset not found.")
@@ -152,9 +135,6 @@ async def health():
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
-    """
-    Accept a CSV upload, run the full NIDS pipeline, and return results as JSON.
-    """
     if (model is None and tflite_interpreter is None) or scaler is None:
         raise HTTPException(status_code=503, detail=f"Model not loaded: {load_error}")
 
@@ -162,9 +142,8 @@ async def predict(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Only CSV files are accepted.")
 
     try:
-        # Read csv
         contents = await file.read()
-        df = pd.read_csv(io.BytesIO(contents)) #creates an in-memoory file like object from the uploaded file contents
+        df = pd.read_csv(io.BytesIO(contents))
         df.columns = df.columns.str.strip()
         total_rows = len(df)
         if total_rows == 0:
@@ -173,7 +152,6 @@ async def predict(file: UploadFile = File(...)):
             raise ValueError(
                 f"Too many rows ({total_rows}). Max allowed is {MAX_ROWS_PER_REQUEST} rows."
             )
-        # Keep a copy of the original data before preprocessing for display
         original_df = df.copy()
         processed = preprocess_inference(df)
         expected_features = scaler.feature_names_in_
@@ -258,7 +236,6 @@ async def predict(file: UploadFile = File(...)):
             row = {}
             for col in display_columns:
                 val = original_df.iloc[i][col]
-                # Format numbers nicely
                 if isinstance(val, float):
                     row[col] = round(val, 2) if abs(val) < 1e6 else f"{val:.2e}"
                 else:
@@ -267,7 +244,6 @@ async def predict(file: UploadFile = File(...)):
             row["Confidence"] = round(float(confidence_scores[i]), 4)
             results_rows.append(row)
 
-        # Build CSV string for download (capped to keep response small)
         download_limit = min(MAX_DOWNLOAD_ROWS, total_rows)
         download_slice = original_df.iloc[:download_limit]
         download_data = {}
