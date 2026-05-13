@@ -7,3 +7,4 @@ fastapi
 uvicorn[standard]
 python-multipart
 imbalanced-learn
+shap
