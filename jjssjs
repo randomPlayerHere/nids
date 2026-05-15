@@ -1,0 +1,174 @@
+[33mcommit 64a8d169705d3b27fb1e68eb3a9dc35ec850e1df[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mupdate[m[33m)[m
+Author: khushal <khushalnirwal@gmail.com>
+Date:   Thu May 14 01:38:48 2026 +0530
+
+    Added SHAP api
+
+[33mcommit 99044dbb367ed2763bd019ec3fbc7a5d6f6d8f81[m
+Author: khushal <khushalnirwal@gmail.com>
+Date:   Wed May 13 21:55:46 2026 +0530
+
+    project restructure
+
+[33mcommit 9e12c5d78616875adea59059cbd765cf956b11b4[m[33m ([m[1;31morigin/update[m[33m)[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Sun Mar 22 17:14:06 2026 +0530
+
+    updated the preprocessing
+
+[33mcommit bef265e761f95744f0de813f3479c71bee439e5a[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Fri Mar 13 02:15:10 2026 +0530
+
+    deploy change
+
+[33mcommit b8edd8e9dea99d2124e519887dfc60fb48de87fa[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Fri Mar 6 15:32:47 2026 +0530
+
+    For uptime check
+
+[33mcommit a239158e51bd84c94064acc5556134939850f58a[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Fri Mar 6 15:21:24 2026 +0530
+
+    Updated readme
+
+[33mcommit d7494ec6431ac1596bbaeb313a9235903d76c70c[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Fri Mar 6 15:15:30 2026 +0530
+
+    Remove __pycache__ and .vscode from tracking
+
+[33mcommit 1345d7dec3e9393d7d7bd4b5ff509ab16349bd72[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Fri Mar 6 15:04:19 2026 +0530
+
+    Clean up repository structure
+    
+    - Update .gitignore with comprehensive ignore rules
+    - Remove legacy files (.pdf, .python-version, KOYEB docs)
+    - Remove notebooks (moved to scripts/)
+    - Remove streamlit_app.py (using FastAPI)
+    - Add preprocessing.py to scripts/
+    - Update README with accurate project structure
+
+[33mcommit 5ae732f592eba4a1fab64b5f7a17a4f6fc4d4a59[m
+Author: Khushal Nirwal <104513074+randomPlayerHere@users.noreply.github.com>
+Date:   Fri Mar 6 14:50:57 2026 +0530
+
+    Added test file
+
+[33mcommit de656306abf3b3aed5bc0e1058788450ade91562[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Fri Mar 6 14:45:32 2026 +0530
+
+    Added sample file analysis
+
+[33mcommit 3c49f2f6d3e7b55608d8f8a01ba371af6d2e182b[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Fri Mar 6 14:37:13 2026 +0530
+
+    Touch ups
+
+[33mcommit b8f8e07c4b51f95f04dc4233912d0f3ebb7b6731[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Thu Mar 5 01:58:15 2026 +0530
+
+    Deployment test-3
+
+[33mcommit dc35abb9b0b53429ebd4c6addf35a028c75dddb9[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Thu Mar 5 01:47:30 2026 +0530
+
+    Deployment test-2
+
+[33mcommit 7888c233fb07842ee7b8a8d8addd41219db43bf4[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Thu Mar 5 01:37:08 2026 +0530
+
+    Fix Koyeb memory issue
+
+[33mcommit 5a7fc0677881f55fe17dbde45ea5f946d8fddb51[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Thu Mar 5 01:25:46 2026 +0530
+
+    Deployment test-1
+
+[33mcommit bcad3633f35d0aed4bb788043ca8bcc50d93bd16[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Thu Mar 5 00:13:23 2026 +0530
+
+    NIDS Streamlit working
+
+[33mcommit c21cf2194590015a3b0acb95cb3a50f13374ea85[m
+Merge: 298a6b0 a581a6d
+Author: Khushal Nirwal <104513074+randomPlayerHere@users.noreply.github.com>
+Date:   Sun Feb 22 13:54:27 2026 +0530
+
+    Merge pull request #2 from ketchuphere/main
+    
+    keshav
+
+[33mcommit a581a6d81f8299694398dd38f89837028dae4a53[m
+Author: [Keshav Chawda] <ketchupirl@gmail.com>
+Date:   Sun Feb 22 13:50:05 2026 +0530
+
+    keshav
+
+[33mcommit 298a6b0274b52ba67a0e1220f1dcad0cd2a0e074[m
+Merge: 18c166b 08e2159
+Author: Khushal Nirwal <104513074+randomPlayerHere@users.noreply.github.com>
+Date:   Sun Feb 22 13:45:49 2026 +0530
+
+    Merge pull request #1 from krishnagarwal12/main
+    
+    frontend and backend
+
+[33mcommit 08e215949517de4d0ed75552a1658d40c6109a5f[m
+Author: krishnagarwal12 <ag.krishna08@gmail.com>
+Date:   Sun Feb 22 13:43:47 2026 +0530
+
+    frontend and backend
+
+[33mcommit 18c166b75316fdcf2f182ce531243de359a2cead[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Sun Feb 22 12:17:20 2026 +0530
+
+    updated
+
+[33mcommit 8977a05cd9be1714335edc92d7a64331807c9694[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Sun Feb 22 12:08:18 2026 +0530
+
+    updated
+
+[33mcommit 072d578f3247499fc263388a42ebf79cecb52352[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Sun Feb 22 12:04:01 2026 +0530
+
+    model training done
+
+[33mcommit 204c896c04f03085406f21ddb976924862ccfedd[m
+Author: [Keshav Chawda] <ketchupirl@gmail.com>
+Date:   Sat Jan 24 17:25:09 2026 +0530
+
+    Keshav made a change
+
+[33mcommit 1fcbba1f050f8a0c6cbbe880b1ac5b155728e142[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Sat Jan 24 16:37:24 2026 +0530
+
+    Initial Commit
+
+[33mcommit 23d6e15da04af4cef3956069996d3938b051bd32[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Sat Jan 10 23:19:22 2026 +0530
+
+    Added gitignore
+
+[33mcommit f44e3871ba60677a2986bb7b0a68437178d60032[m
+Author: randomPlayerHere <khushalnirwal@gmail.com>
+Date:   Sat Jan 10 23:15:43 2026 +0530
+
+    Initial Commit
