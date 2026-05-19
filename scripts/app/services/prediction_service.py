@@ -74,3 +74,5 @@ def predict_explained(req: PredictRequest) -> PredictResponse:
         top_contributions=top,
         all_contributions=all_contribs,
     )
+
+def predict_batch(req:)
