@@ -11,7 +11,7 @@ from .model import (
     scaler,
     vectorize,
 )
-from ..schemas import PredictRequest, PredictResponse, ShapContribution, PredictResponseFast
+from ..schemas import PredictRequest, PredictResponse, ShapContribution, PredictResponseFast, PredictBatchRequest, PredictBatchResponse
 
 # inner working functions
 def _to_model_input(raw: np.ndarray, already_scaled: bool) -> np.ndarray:
@@ -75,4 +75,10 @@ def predict_explained(req: PredictRequest) -> PredictResponse:
         all_contributions=all_contribs,
     )
 
-def predict_batch(req:)
+def predict_batch(req:PredictBatchRequest) -> PredictBatchResponse:
+    result = []
+    for flow in req.flows:
+        result.append(predict_fast(PredictRequest(features=flow, top_k=req.top_k)))
+    return PredictBatchResponse(
+        flow_result=result
+    )

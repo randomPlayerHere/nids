@@ -59,3 +59,11 @@ class Alert(BaseModel):
     fwdPackets: int
     geo: Geo | None = None
     shapValues: list[ShapContribution] | None = None
+
+
+class PredictBatchRequest(BaseModel):
+    flows: list[dict[str, float] | list[float]]
+    top_k: int = TOP_K_DEFAULT
+
+class PredictBatchResponse(BaseModel):
+    flow_result : list[PredictResponseFast]
