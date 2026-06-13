@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Comma-separated allowed CORS origins (frontend dev + your deployed UI).
+      NIDS_CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+      NIDS_LOG_LEVEL: "INFO"
+      # Uncomment after mounting a GeoLite2-City.mmdb below for real geolocation:
+      # NIDS_GEOIP_DB_PATH: "/geoip/GeoLite2-City.mmdb"
+    volumes:
+      # Optional: drop a MaxMind GeoLite2-City.mmdb in ./geoip to enable geo lookups.
+      - ./geoip:/geoip:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped

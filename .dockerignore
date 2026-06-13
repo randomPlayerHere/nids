@@ -1,0 +1,14 @@
+# Keep the build context (and final image) small.
+frontend/
+data/raw/
+tests/
+*.ipynb
+.git/
+.gitignore
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.md
+geoip/
+models/old/

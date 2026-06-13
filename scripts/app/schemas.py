@@ -67,3 +67,15 @@ class PredictBatchRequest(BaseModel):
 
 class PredictBatchResponse(BaseModel):
     flow_result : list[PredictResponseFast]
+
+
+class AnalyzeSummary(BaseModel):
+    total: int
+    benign: int
+    malicious: int
+    by_class: dict[str, int]
+
+
+class AnalyzeResponse(BaseModel):
+    alerts: list[Alert]
+    summary: AnalyzeSummary

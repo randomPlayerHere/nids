@@ -146,12 +146,52 @@ The web interface provides a straightforward way to analyze network traffic:
 
 ### REST API
 
-Send a POST request with your network traffic CSV:
+Run the backend from the project root:
 
 ```bash
-curl -X POST "http://localhost:8000/predict" \
-  -F "file=@your_traffic_data.csv"
+uvicorn scripts.api:app --reload --port 8000
+# interactive docs at http://localhost:8000/docs
 ```
+
+**Endpoints**
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/health` | Liveness + model metadata (feature/class counts) |
+| GET | `/features` | Ordered list of the 78 feature names |
+| POST | `/predict` | One flow → predicted class + confidence |
+| POST | `/predict/explain` | One flow → prediction + SHAP feature contributions |
+| POST | `/predict/batch` | JSON list of flows **or** a CSV upload → per-flow predictions |
+| POST | `/api/analyze` | CSV upload → list of `Alert` objects + summary |
+| WS | `/ws/alerts` | Live demo stream: one `Alert`/sec from real CICIDS rows |
+
+**Examples**
+
+```bash
+# Health
+curl http://localhost:8000/health
+
+# Single prediction (78 values, in feature order — see GET /features)
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"features": [0.0, 0.0, /* …78 total… */ 0.0]}'
+
+# Prediction with SHAP explanation
+curl -X POST http://localhost:8000/predict/explain \
+  -H "Content-Type: application/json" \
+  -d '{"features": {"Flow Duration": 1200, "Total Fwd Packets": 5, "...": 0}}'
+
+# Analyze an uploaded CSV (CICIDS feature columns)
+curl -X POST http://localhost:8000/api/analyze \
+  -F "csv=@test.csv" -F "include_shap=true"
+```
+
+**Configuration** — every setting has a default and an `NIDS_`-prefixed env var
+override, e.g. `NIDS_CORS_ORIGINS`, `NIDS_STREAM_RATE_HZ`, `NIDS_GEOIP_DB_PATH`,
+`NIDS_MAX_UPLOAD_ROWS` (see `scripts/app/config.py`).
+
+> For a full walkthrough of how every component works and why, see
+> [`explain.md`](explain.md).
 
 ### Python Integration
 

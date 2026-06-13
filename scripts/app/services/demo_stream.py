@@ -83,10 +83,17 @@ for path in CSV_FILES:
     else:
         print("warning: csv file not found:", path)
 
-if len(all_flows) == 0:
-    raise RuntimeError("no flows were loaded, check the csv files")
+FLOWS_ALREADY_SCALED = False
 
-print("loaded", len(all_flows), "flows for the demo")
+if len(all_flows) == 0:
+    # fallback when the raw CSVs aren't around: use the scaled background rows
+    from .model import background
+
+    all_flows = [background[i].reshape(-1) for i in range(background.shape[0])]
+    FLOWS_ALREADY_SCALED = True
+    print("raw CSVs not found — using", len(all_flows), "scaled background rows for the demo")
+else:
+    print("loaded", len(all_flows), "flows for the demo")
 
 
 def make_random_public_ip():
@@ -110,5 +117,5 @@ def next_demo_alert():
         flow_duration=int(features[FLOW_DURATION_IDX]) if FLOW_DURATION_IDX >= 0 else 0,
         fwd_packets=int(features[FWD_PACKETS_IDX]) if FWD_PACKETS_IDX >= 0 else 0,
     )
-    alert = flow_to_alert(features, meta, include_shap=False, already_scaled=False)
+    alert = flow_to_alert(features, meta, include_shap=False, already_scaled=FLOWS_ALREADY_SCALED)
     return alert

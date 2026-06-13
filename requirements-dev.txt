@@ -1,0 +1,4 @@
+# extra packages for running the tests
+-r requirements.txt
+httpx       # needed by FastAPI's TestClient in tests/test_api.py
+geoip2      # optional: real IP geolocation (needs a GeoLite2-City.mmdb)
