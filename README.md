@@ -330,52 +330,22 @@ Performance may vary depending on the similarity between your data and the train
 ## Deployment
 
 The stack is two stateless services — a FastAPI/TensorFlow backend and a static
-React bundle served by nginx — which keeps deployment options open. Pick the
-strategy that matches your scale and ops appetite.
+React bundle — so it deploys cleanly anywhere.
 
-### 1. Single host with Docker Compose (simplest)
-`docker compose up -d --build` on any VM (EC2, DigitalOcean droplet, on-prem
-box). Put a TLS terminator (Caddy, Traefik, or nginx) in front for HTTPS.
-Best for demos, internal tools, and small deployments.
+- **Local / demo:** `docker compose up --build` → dashboard at
+  `http://localhost:8080`. Zero config; best for a presentation or viva.
+- **Free public link:** host the **backend on Hugging Face Spaces** (Docker, free
+  16 GB RAM, WebSocket support) and the **frontend on Vercel**. Step-by-step
+  instructions are in **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 
-### 2. Split frontend / backend (most common for production)
-- **Frontend** → any static host / CDN (Netlify, Vercel, Cloudflare Pages, S3 +
-  CloudFront). Build with `VITE_API_BASE=https://api.yourdomain.com` baked in.
-- **Backend** → a container platform (Fly.io, Railway, Render, AWS App Runner,
-  Google Cloud Run, Azure Container Apps). Set `NIDS_CORS_ORIGINS` to the
-  frontend's public origin.
+The repo is pre-configured for this: the backend honors `$PORT`, synthesizes its
+SHAP background when the large `X_dcnn.npy` isn't present, and the frontend's API
+base is set with the `VITE_API_BASE` build variable.
 
-  > **WebSocket note:** the live `/ws/alerts` stream needs a platform that
-  > supports long-lived WebSocket connections. Cloud Run and App Runner do; most
-  > "serverless function" runtimes (e.g. plain Lambda/Vercel functions) do not.
-
-### 3. Kubernetes (scale + resilience)
-Two Deployments (backend, frontend) behind a Service each, exposed via an
-Ingress with WebSocket support and TLS. Add an HorizontalPodAutoscaler on the
-backend (the TensorFlow inference is the bottleneck). Use readiness/liveness
-probes against `/health`. Bake models into the image or mount them from a
-PVC / object store.
-
-### 4. Edge / on-prem appliance
-Use the exported `nids_model.tflite` with the TFLite runtime for low-footprint
-inference on constrained hardware near the traffic source, forwarding alerts to
-a central dashboard.
-
-### Production hardening checklist
-- **Serve over HTTPS/WSS** — terminate TLS at the proxy or platform.
-- **Scale the API** — run uvicorn with workers or behind gunicorn, e.g.
-  `gunicorn scripts.api:app -k uvicorn.workers.UvicornWorker -w 2`. Each worker
-  loads its own copy of the model, so size memory accordingly (~1–2 GB/worker).
-- **Pin dependencies** — replace the unpinned `requirements.txt` with a lockfile
-  (`pip freeze`) for reproducible builds.
-- **Lock down CORS** — set `NIDS_CORS_ORIGINS` to exact origins, never `*`.
-- **Real geolocation** — mount a MaxMind `GeoLite2-City.mmdb` and set
-  `NIDS_GEOIP_DB_PATH` to enrich alerts server-side.
-- **Add auth** — these endpoints are unauthenticated; put them behind an API
-  gateway, reverse-proxy auth, or add FastAPI dependencies before exposing them
-  publicly.
-- **Observability** — the API logs every request with latency; ship logs and add
-  a metrics/uptime check against `/health`.
+If you later need production scale, the same images run on any container platform
+(Cloud Run, Fly.io, Railway) or Kubernetes — just terminate TLS, set
+`NIDS_CORS_ORIGINS` to your exact frontend origin, and add auth in front of the
+unauthenticated endpoints.
 
 ---
 

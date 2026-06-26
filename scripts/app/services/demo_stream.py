@@ -86,12 +86,23 @@ for path in CSV_FILES:
 FLOWS_ALREADY_SCALED = False
 
 if len(all_flows) == 0:
-    # fallback when the raw CSVs aren't around: use the scaled background rows
-    from .model import background
+    # Raw CSVs not present (e.g. in the Docker image). Prefer the committed
+    # demo_flows.npy sample of real scaled flows so the stream shows realistic,
+    # high-confidence predictions across all classes; only fall back to the
+    # (possibly synthetic) SHAP background as a last resort.
+    from ..config import settings
 
-    all_flows = [background[i].reshape(-1) for i in range(background.shape[0])]
-    FLOWS_ALREADY_SCALED = True
-    print("raw CSVs not found — using", len(all_flows), "scaled background rows for the demo")
+    if settings.DEMO_FLOWS_PATH.exists():
+        demo = np.load(settings.DEMO_FLOWS_PATH).astype(np.float32)
+        all_flows = [demo[i].reshape(-1) for i in range(demo.shape[0])]
+        FLOWS_ALREADY_SCALED = True
+        print("raw CSVs not found — using", len(all_flows), "rows from demo_flows.npy")
+    else:
+        from .model import background
+
+        all_flows = [background[i].reshape(-1) for i in range(background.shape[0])]
+        FLOWS_ALREADY_SCALED = True
+        print("raw CSVs not found — using", len(all_flows), "scaled background rows for the demo")
 else:
     print("loaded", len(all_flows), "flows for the demo")
 

@@ -29,11 +29,28 @@ if len(FEATURE_NAMES) != N_FEATURES:
         f"Feature-name count ({len(FEATURE_NAMES)}) does not match model input width ({N_FEATURES})."
     )
 
-# background rows for SHAP (already scaled)
-_bg_all = np.load(settings.BACKGROUND_PATH)
+# Background rows for SHAP (already scaled to [0, 1] by the MinMaxScaler).
+# Prefer the real processed sample when it's available locally; otherwise fall
+# back to a small synthetic background so the app still deploys from a clean
+# clone (the 149 MB X_dcnn.npy is not committed). The fallback is only used by
+# the SHAP explainer and the demo-stream fallback — predictions are unaffected.
 _rng = np.random.default_rng(42)
-_idx = _rng.choice(_bg_all.shape[0], size=min(settings.BACKGROUND_SIZE, _bg_all.shape[0]), replace=False)
-background = _bg_all[_idx].astype(np.float32)
+_bg_source = (
+    settings.BACKGROUND_PATH if settings.BACKGROUND_PATH.exists()
+    else settings.DEMO_FLOWS_PATH if settings.DEMO_FLOWS_PATH.exists()
+    else None
+)
+if _bg_source is not None:
+    _bg_all = np.load(_bg_source)
+    _idx = _rng.choice(_bg_all.shape[0], size=min(settings.BACKGROUND_SIZE, _bg_all.shape[0]), replace=False)
+    background = _bg_all[_idx].astype(np.float32)
+    logger.info("SHAP background loaded from %s (%d rows)", _bg_source.name, background.shape[0])
+else:
+    logger.warning(
+        "No SHAP background file found — using a synthetic [0,1] background of %d rows.",
+        settings.BACKGROUND_SIZE,
+    )
+    background = _rng.random((settings.BACKGROUND_SIZE, N_FEATURES, 1), dtype=np.float32)
 
 # heavy model + explainer load lazily (see load_models)
 model = None

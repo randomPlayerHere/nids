@@ -38,6 +38,10 @@ class Settings:
         self.SCALER_PATH = Path(_env("SCALER_PATH", str(ROOT / "models" / "new" / "cicids_scaler.pkl")))
         self.LABELS_PATH = Path(_env("LABELS_PATH", str(ROOT / "models" / "new" / "class_labels.json")))
         self.BACKGROUND_PATH = Path(_env("BACKGROUND_PATH", str(ROOT / "data" / "processed" / "X_dcnn.npy")))
+        # Small, committed sample of real scaled flows (~500 rows, all classes).
+        # Used as the SHAP background and the live-demo stream source when the
+        # large processed/raw datasets aren't present (e.g. in the Docker image).
+        self.DEMO_FLOWS_PATH = Path(_env("DEMO_FLOWS_PATH", str(ROOT / "data" / "demo_flows.npy")))
 
         # shap
         self.BACKGROUND_SIZE = _env_int("BACKGROUND_SIZE", 100)
