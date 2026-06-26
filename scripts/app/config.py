@@ -48,7 +48,10 @@ class Settings:
         self.GEOIP_DB_PATH = Path(geoip) if geoip else None
 
         # api
-        self.CORS_ORIGINS = _env_list("CORS_ORIGINS", ["http://localhost:5173", "http://127.0.0.1:5173"])
+        self.CORS_ORIGINS = _env_list(
+            "CORS_ORIGINS",
+            ["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:5173", "http://127.0.0.1:5173"],
+        )
         self.STREAM_RATE_HZ = _env_float("STREAM_RATE_HZ", 1.0)
 
         # file upload

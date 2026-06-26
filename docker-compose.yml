@@ -1,12 +1,18 @@
+# Full NIDS stack: FastAPI backend + nginx-served React frontend.
+#   docker compose up --build
+# Then open http://localhost:8080
 services:
   backend:
     build: .
-    ports:
-      - "8000:8000"
+    # No host port needed in the default setup — the frontend proxies to it on
+    # the internal network. Uncomment to expose the API directly for debugging.
+    # ports:
+    #   - "8000:8000"
     environment:
-      # Comma-separated allowed CORS origins (frontend dev + your deployed UI).
-      NIDS_CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
-      NIDS_LOG_LEVEL: "INFO"
+      # Same-origin requests come through nginx, so CORS is only needed for
+      # local `npm run dev` (Vite on :8080). Add your public UI origin in prod.
+      NIDS_CORS_ORIGINS: "${NIDS_CORS_ORIGINS:-http://localhost:8080,http://localhost:5173,http://127.0.0.1:5173}"
+      NIDS_LOG_LEVEL: "${NIDS_LOG_LEVEL:-INFO}"
       # Uncomment after mounting a GeoLite2-City.mmdb below for real geolocation:
       # NIDS_GEOIP_DB_PATH: "/geoip/GeoLite2-City.mmdb"
     volumes:
@@ -18,4 +24,17 @@ services:
       timeout: 5s
       retries: 3
       start_period: 60s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      # Empty VITE_API_BASE => same-origin; nginx forwards /api, /ws, ... to backend.
+      args:
+        VITE_API_BASE: ""
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
     restart: unless-stopped

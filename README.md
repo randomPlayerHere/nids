@@ -18,16 +18,17 @@
 
 ## Overview
 
-This project implements a network intrusion detection system using a one-dimensional Deep Convolutional Neural Network (DCNN). The model is trained on the CICIDS2017 dataset to perform binary classification, distinguishing between benign network traffic and various types of cyber attacks.
+This project implements a network intrusion detection system using a one-dimensional Deep Convolutional Neural Network (DCNN). The model is trained on the CICIDS2017 dataset to perform **multi-class classification** across 11 categories — `BENIGN` plus 10 attack families (DDoS, PortScan, Botnet, the DoS variants, the Patators, and Web Attacks).
 
 The approach draws from recent advances in deep learning for cybersecurity applications, where convolutional architectures have shown remarkable success in extracting spatial features from network flow data.
 
 **Key Features:**
-- Binary classification system (BENIGN vs ATTACK)
+- 11-class classifier (BENIGN + 10 attack families) over 78 CICIDS flow features
 - 1D Convolutional Neural Network architecture
-- Trained on the comprehensive CICIDS2017 dataset
-- REST API and web interface for easy deployment
-- TensorFlow Lite support for resource-constrained environments
+- FastAPI backend with SHAP explanations and a live WebSocket alert stream
+- React/Vite real-time dashboard (alert feed, threat map, per-flow explanations)
+- One-command full-stack deployment via Docker Compose
+- TensorFlow Lite export for resource-constrained environments
 
 ---
 
@@ -80,18 +81,28 @@ The Canadian Institute for Cybersecurity Intrusion Detection System 2017 (CICIDS
 ```
 nids/
 ├── models/
-│   ├── nids_dcnn_model.h5       # Trained Keras model
-│   ├── nids_dcnn_model.tflite   # TensorFlow Lite version
-│   └── cicids_scaler.pkl        # MinMaxScaler for feature normalization
+│   └── new/
+│       ├── nids_model.h5         # Trained 11-class Keras model
+│       ├── nids_model.tflite     # TensorFlow Lite version
+│       ├── cicids_scaler.pkl     # MinMaxScaler for feature normalization
+│       └── class_labels.json     # Index → label mapping
 ├── scripts/
-│   ├── convert_to_tflite.py     # Model conversion utility
-│   └── preprocessing.py         # Data preprocessing utilities
-├── app.py                       # FastAPI backend server
-├── code.html                    # Web frontend interface
-├── Dockerfile                   # Container configuration
-├── Procfile                     # Deployment configuration
-├── favicon.png                  # Application icon
-└── requirements.txt             # Python dependencies
+│   ├── api.py                    # FastAPI entrypoint (uvicorn scripts.api:app)
+│   ├── app/
+│   │   ├── config.py             # Env-driven settings (NIDS_* overrides)
+│   │   ├── schemas.py            # Pydantic request/response models
+│   │   ├── routers/              # health, predict, analyze, stream (WS)
+│   │   └── services/             # model, SHAP, csv_loader, demo_stream, geoip
+│   ├── convert_to_tflite.py      # Model conversion utility
+│   └── preprocessing.py          # Data preprocessing utilities
+├── frontend/                     # React + Vite dashboard (nginx-served in prod)
+│   ├── src/lib/api.ts            # Backend client (REST + WebSocket)
+│   ├── Dockerfile                # Build → nginx image
+│   └── nginx.conf                # Static serve + reverse proxy to backend
+├── tests/                        # Backend pytest suite
+├── Dockerfile                    # Backend container
+├── docker-compose.yml            # Full stack: backend + frontend
+└── requirements.txt              # Python dependencies
 ```
 
 ---
@@ -115,19 +126,39 @@ pip install -r requirements.txt
 
 ### Running the Application
 
-**Option 1: FastAPI REST API (Recommended)**
+**Option 1: Full stack with Docker Compose (Recommended)**
+
+Builds the backend API and the nginx-served React dashboard, wired together on
+one network:
 
 ```bash
-uvicorn app:app --reload --host 0.0.0.0 --port 8000
+cp .env.example .env        # optional — sane defaults work out of the box
+docker compose up --build
 ```
 
-Access the interactive API documentation at `http://localhost:8000/docs`
+Then open the dashboard at **http://localhost:8080**. The frontend's nginx
+reverse-proxies `/api`, `/ws`, `/health`, etc. to the backend, so there is no
+CORS or URL configuration to do.
 
-**Option 2: Docker Deployment**
+**Option 2: Run the two services locally for development**
 
 ```bash
-docker build -t nids .
-docker run -p 8000:8000 nids
+# Terminal 1 — backend (hot reload)
+uvicorn scripts.api:app --reload --port 8000
+
+# Terminal 2 — frontend (Vite dev server on :8080)
+cd frontend
+echo "VITE_API_BASE=http://localhost:8000" > .env   # point the UI at the API
+npm install && npm run dev
+```
+
+Interactive API docs are always available at `http://localhost:8000/docs`.
+
+**Option 3: Backend container only**
+
+```bash
+docker build -t nids-backend .
+docker run -p 8000:8000 nids-backend
 ```
 
 ---
@@ -270,7 +301,7 @@ The DCNN architecture is designed to extract meaningful patterns from sequential
 | Flatten | - | (samples, 18944) |
 | Dense | 256 units, ReLU, L1/L2 regularization | (samples, 256) |
 | Dropout | 0.1 | (samples, 256) |
-| Dense | 2 units, Softmax | (samples, 2) |
+| Dense | 11 units, Softmax | (samples, 11) |
 
 **Training Configuration:**
 - Optimizer: Adam (learning rate: 0.0001)
@@ -293,6 +324,58 @@ Evaluation on the CICIDS2017 test set yields the following results:
 | Recall (ATTACK) | High |
 
 Performance may vary depending on the similarity between your data and the training distribution. The model performs best on traffic patterns that resemble those captured in the CICIDS2017 dataset.
+
+---
+
+## Deployment
+
+The stack is two stateless services — a FastAPI/TensorFlow backend and a static
+React bundle served by nginx — which keeps deployment options open. Pick the
+strategy that matches your scale and ops appetite.
+
+### 1. Single host with Docker Compose (simplest)
+`docker compose up -d --build` on any VM (EC2, DigitalOcean droplet, on-prem
+box). Put a TLS terminator (Caddy, Traefik, or nginx) in front for HTTPS.
+Best for demos, internal tools, and small deployments.
+
+### 2. Split frontend / backend (most common for production)
+- **Frontend** → any static host / CDN (Netlify, Vercel, Cloudflare Pages, S3 +
+  CloudFront). Build with `VITE_API_BASE=https://api.yourdomain.com` baked in.
+- **Backend** → a container platform (Fly.io, Railway, Render, AWS App Runner,
+  Google Cloud Run, Azure Container Apps). Set `NIDS_CORS_ORIGINS` to the
+  frontend's public origin.
+
+  > **WebSocket note:** the live `/ws/alerts` stream needs a platform that
+  > supports long-lived WebSocket connections. Cloud Run and App Runner do; most
+  > "serverless function" runtimes (e.g. plain Lambda/Vercel functions) do not.
+
+### 3. Kubernetes (scale + resilience)
+Two Deployments (backend, frontend) behind a Service each, exposed via an
+Ingress with WebSocket support and TLS. Add an HorizontalPodAutoscaler on the
+backend (the TensorFlow inference is the bottleneck). Use readiness/liveness
+probes against `/health`. Bake models into the image or mount them from a
+PVC / object store.
+
+### 4. Edge / on-prem appliance
+Use the exported `nids_model.tflite` with the TFLite runtime for low-footprint
+inference on constrained hardware near the traffic source, forwarding alerts to
+a central dashboard.
+
+### Production hardening checklist
+- **Serve over HTTPS/WSS** — terminate TLS at the proxy or platform.
+- **Scale the API** — run uvicorn with workers or behind gunicorn, e.g.
+  `gunicorn scripts.api:app -k uvicorn.workers.UvicornWorker -w 2`. Each worker
+  loads its own copy of the model, so size memory accordingly (~1–2 GB/worker).
+- **Pin dependencies** — replace the unpinned `requirements.txt` with a lockfile
+  (`pip freeze`) for reproducible builds.
+- **Lock down CORS** — set `NIDS_CORS_ORIGINS` to exact origins, never `*`.
+- **Real geolocation** — mount a MaxMind `GeoLite2-City.mmdb` and set
+  `NIDS_GEOIP_DB_PATH` to enrich alerts server-side.
+- **Add auth** — these endpoints are unauthenticated; put them behind an API
+  gateway, reverse-proxy auth, or add FastAPI dependencies before exposing them
+  publicly.
+- **Observability** — the API logs every request with latency; ship logs and add
+  a metrics/uptime check against `/health`.
 
 ---
 
@@ -338,7 +421,7 @@ This project builds upon the work of many researchers and open-source contributo
 
 - **Canadian Institute for Cybersecurity** for creating and maintaining the CICIDS2017 dataset
 - **TensorFlow and Keras teams** for the deep learning framework
-- **Streamlit** for the web application framework
+- **FastAPI** and **React/Vite** for the application stack
 - The broader research community working on network security and machine learning
 
 ---
