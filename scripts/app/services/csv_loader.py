@@ -27,10 +27,10 @@ def load_csv(csv: UploadFile) -> list[dict[str, float]]:
     if missing:
         raise HTTPException(400, f"Missing feature columns: {missing[:5]}{'...' if len(missing) > 5 else ''}")
 
-    # reorder to the order the scaler/model expect
+    # column order the scaler/model expect
     df = df[FEATURE_NAMES]
 
-    # flow CSVs contain inf/NaN (e.g. Flow Bytes/s divide-by-zero) -> make them 0
+    # flow CSVs carry inf/NaN (e.g. Flow Bytes/s div-by-zero); zero them out
     df = df.apply(pd.to_numeric, errors="coerce")
     df = df.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
@@ -45,7 +45,7 @@ def _rand_public_ip() -> str:
 
 
 def synth_meta(row: dict[str, float]) -> FlowMeta:
-    # the CSV has no IP/protocol columns, so make them up for display
+    # CSV has no IP/protocol columns; fabricate them for display
     return FlowMeta(
         src_ip=_rand_public_ip(),
         dst_ip=f"10.0.0.{random.randint(1, 254)}",

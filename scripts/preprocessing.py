@@ -42,7 +42,7 @@ df['Label'] = df['Label'].str.replace(
     r'Web Attack\s*.\s*Sql Injection', 'Web Attacks', regex=True
 )
 
-# Bot → Botnet (still needed)
+# Bot -> Botnet
 df['Label'] = df['Label'].str.replace(r'^Bot$', 'Botnet', regex=True)
 
 print(df['Label'].value_counts())
@@ -113,7 +113,7 @@ class_mapping = {str(i): name for i, name in enumerate(le.classes_)}
 print(f"\nNumber of classes: {num_classes}")
 print("Encoded class mapping:")
 for k, v in class_mapping.items():
-    print(f"  {k} → {v}")
+    print(f"  {k} -> {v}")
 
 # %% [markdown]
 

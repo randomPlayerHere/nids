@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Reproduce the held-out test split and produce a full classification report.
+"""Rebuild the held-out test split and write a classification report.
 
-Mirrors the training notebook's split exactly: SEED=42, test_size=0.2, stratified.
-Writes scripts/EVAL_REPORT.md and prints the report.
+Same split as the training notebook (SEED=42, test_size=0.2, stratified).
+Output goes to scripts/EVAL_REPORT.md.
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ with open(ROOT / "models/new/class_mapping.json") as f:
     class_mapping = json.load(f)
 labels = [class_mapping[str(i)] for i in range(len(class_mapping))]
 
-# same first split as the notebook -> recovers the identical held-out test set
+# identical first split to the notebook, recovers the same test set
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, stratify=y, random_state=SEED
 )
@@ -51,16 +51,16 @@ report = classification_report(
 )
 cm = confusion_matrix(y_test, y_pred)
 
-# per-class table for markdown
+# per-class numbers for the markdown table
 prec = precision_score(y_test, y_pred, average=None, zero_division=0)
 rec = recall_score(y_test, y_pred, average=None, zero_division=0)
 f1c = f1_score(y_test, y_pred, average=None, zero_division=0)
 support = np.bincount(y_test, minlength=len(labels))
 
 lines = []
-lines.append("# NIDS — Model Evaluation Report\n")
-lines.append(f"Held-out test set: **{len(y_test):,} flows** | classes: **{len(labels)}** | "
-             f"features: **{X.shape[1]}** (1D CNN)\n")
+lines.append("# NIDS Model Evaluation Report\n")
+lines.append(f"Held-out test set: {len(y_test):,} flows | classes: {len(labels)} | "
+             f"features: {X.shape[1]} (1D CNN)\n")
 lines.append("## Headline metrics\n")
 lines.append("| Metric | Value |")
 lines.append("|---|---|")
@@ -87,7 +87,7 @@ lines.append("|" + "---|" * (len(labels) + 1))
 for i, name in enumerate(labels):
     row = " | ".join(f"{cm[i, j]:,}" for j in range(len(labels)))
     lines.append(f"| {i} {name} | {row} |")
-lines.append("\nClass index → name: " + ", ".join(f"{i}={n}" for i, n in enumerate(labels)) + "\n")
+lines.append("\nClass index to name: " + ", ".join(f"{i}={n}" for i, n in enumerate(labels)) + "\n")
 
 out = ROOT / "scripts/EVAL_REPORT.md"
 out.write_text("\n".join(lines))

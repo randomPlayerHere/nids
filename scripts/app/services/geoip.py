@@ -8,7 +8,7 @@ from ..config import settings
 
 logger = logging.getLogger("nids.geoip")
 
-# load the MaxMind database if one is configured, else stay disabled
+# open the MaxMind db if configured, otherwise stay off
 _reader = None
 if settings.GEOIP_DB_PATH and settings.GEOIP_DB_PATH.exists():
     try:
