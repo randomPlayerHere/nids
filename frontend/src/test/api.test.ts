@@ -2,9 +2,11 @@ import { describe, it, expect } from "vitest";
 import { wsBase, normalizeAlert } from "@/lib/api";
 
 describe("wsBase", () => {
-  it("derives a ws(s) URL from the page origin when no API base is set", () => {
-    // jsdom serves the page from http://localhost, so we expect ws://localhost.
-    expect(wsBase()).toMatch(/^ws:\/\//);
+  it("produces a ws(s):// URL, never http(s)://", () => {
+    // Derived from VITE_API_BASE (or the page origin): https -> wss, http -> ws.
+    const base = wsBase();
+    expect(base).toMatch(/^wss?:\/\//);
+    expect(base.startsWith("http")).toBe(false);
   });
 });
 
