@@ -1,0 +1,217 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 6%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 0 0% 95%;
+    --primary-foreground: 0 0% 6%;
+
+    --secondary: 0 0% 13%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 0 0% 13%;
+    --muted-foreground: 0 0% 55%;
+
+    --accent: 0 0% 14%;
+    --accent-foreground: 0 0% 95%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 95%;
+
+    --border: 0 0% 16%;
+    --input: 0 0% 16%;
+    --ring: 0 0% 60%;
+
+    --radius: 0.5rem;
+
+    --panel: 0 0% 7%;
+    --card-elevated: 0 0% 13%;
+
+    --severity-critical: 0 65% 58%;
+    --severity-high: 28 70% 56%;
+    --severity-medium: 42 70% 58%;
+    --severity-low: 0 0% 32%;
+
+    --success: 140 45% 50%;
+    --info: 0 0% 70%;
+
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 0 0% 95%;
+    --sidebar-primary-foreground: 0 0% 6%;
+    --sidebar-accent: 0 0% 13%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 0 0% 16%;
+    --sidebar-ring: 0 0% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    background: hsl(var(--background));
+  }
+
+  ::selection {
+    background: hsl(0 0% 100% / 0.15);
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer components {
+  .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  .panel-glass {
+    background: linear-gradient(180deg, hsl(var(--panel) / 0.92), hsl(var(--panel) / 0.78));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .hairline-x {
+    background-image: linear-gradient(90deg, transparent, hsl(var(--border)), transparent);
+    height: 1px;
+  }
+
+  .focus-ring {
+    @apply outline-none ring-0 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-0;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  .text-gradient {
+    color: hsl(var(--foreground));
+  }
+
+  .grid-bg {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.35) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.35) 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-position: -1px -1px;
+  }
+}
+
+/* ── Keyframes ─────────────────────────────────────────────── */
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(0 85% 62% / 0); }
+  50% { box-shadow: 0 0 0 4px hsl(0 85% 62% / 0.15); }
+}
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(3); opacity: 0; }
+}
+@keyframes slide-in-right-drawer {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.92); }
+}
+@keyframes flash-accent {
+  0% { background-color: hsl(0 0% 100% / 0.10); }
+  100% { background-color: transparent; }
+}
+@keyframes ticker {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+
+.animate-slide-in-left { animation: slide-in-left 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-fade-in-up { animation: fade-in-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-glow-pulse { animation: glow-pulse 1.6s ease-in-out 2; }
+.animate-pulse-ring { animation: pulse-ring 1.5s ease-out infinite; }
+.animate-slide-in-right-drawer { animation: slide-in-right-drawer 0.32s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-dot-pulse { animation: dot-pulse 1.8s ease-in-out infinite; }
+.animate-flash-accent { animation: flash-accent 0.6s ease-out; }
+.animate-ticker { animation: ticker 1.6s ease-in-out infinite; }
+
+/* ── Leaflet overrides ─────────────────────────────────────── */
+.leaflet-container {
+  background: hsl(var(--background)) !important;
+  font-family: 'Inter', sans-serif !important;
+}
+.leaflet-control-attribution {
+  background: hsl(var(--panel) / 0.7) !important;
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 10px !important;
+  backdrop-filter: blur(6px);
+}
+.leaflet-control-attribution a {
+  color: hsl(var(--muted-foreground)) !important;
+}
+.leaflet-control-zoom a {
+  background: hsl(var(--panel)) !important;
+  color: hsl(var(--foreground)) !important;
+  border-color: hsl(var(--border)) !important;
+}
+.leaflet-control-zoom a:hover {
+  background: hsl(var(--card-elevated)) !important;
+}
+.nids-tooltip {
+  background: hsl(var(--panel)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+  box-shadow: 0 10px 30px hsl(0 0% 0% / 0.5) !important;
+  padding: 6px 8px !important;
+}
+.nids-tooltip::before { display: none !important; }
