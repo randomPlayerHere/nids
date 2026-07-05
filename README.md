@@ -4,7 +4,6 @@
 ![Python](https://img.shields.io/badge/Python-3.8%2B-green?style=for-the-badge&logo=python)
 ![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-orange?style=for-the-badge&logo=tensorflow)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)
 
 # Network Intrusion Detection System
 
@@ -119,7 +118,7 @@ nids/
 Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/yourusername/nids.git
+git clone https://github.com/randomPlayerHere/nids.git
 cd nids
 pip install -r requirements.txt
 ```
@@ -221,9 +220,6 @@ curl -X POST http://localhost:8000/api/analyze \
 override, e.g. `NIDS_CORS_ORIGINS`, `NIDS_STREAM_RATE_HZ`, `NIDS_GEOIP_DB_PATH`,
 `NIDS_MAX_UPLOAD_ROWS` (see `scripts/app/config.py`).
 
-> For a full walkthrough of how every component works and why, see
-> [`explain.md`](explain.md).
-
 ### Python Integration
 
 For direct integration into your Python applications:
@@ -235,8 +231,8 @@ import numpy as np
 import joblib
 
 # Load the trained model and scaler
-model = load_model('models/nids_dcnn_model.h5')
-scaler = joblib.load('models/cicids_scaler.pkl')
+model = load_model('models/new/nids_model.h5')
+scaler = joblib.load('models/new/cicids_scaler.pkl')
 
 # Load and preprocess your data
 df = pd.read_csv('network_traffic.csv')
@@ -357,8 +353,8 @@ This occurs when your input CSV has a different number of columns than expected.
 
 **Model Not Found Error**
 
-Verify that the following files exist in the `models/` directory:
-- `nids_dcnn_model.h5` (or `nids_dcnn_model.tflite`)
+Verify that the following files exist in the `models/new/` directory:
+- `nids_model.h5` (or `nids_model.tflite`)
 - `cicids_scaler.pkl`
 
 **NaN or Infinity Values**
@@ -410,6 +406,6 @@ This project is released under the MIT License. See the LICENSE file for details
 
 **Last Updated:** March 2026
 
-[Report Bug](https://github.com/yourusername/nids/issues) | [Request Feature](https://github.com/yourusername/nids/issues)
+[Report Bug](https://github.com/randomPlayerHere/nids/issues) | [Request Feature](https://github.com/randomPlayerHere/nids/issues)
 
 </div>

@@ -62,3 +62,6 @@ logs/
 remains/
 
 BACKEND_TODO.md
+
+# Hugging Face Space deployment (its own git repo / remote)
+hf-space/
