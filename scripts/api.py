@@ -1,4 +1,4 @@
-"""NIDS API. Run from project root:  uvicorn scripts.api:app --reload --port 8000"""
+"""NIDS API. From the project root: uvicorn scripts.api:app --reload --port 8000"""
 from __future__ import annotations
 
 import logging
@@ -18,7 +18,6 @@ logger = logging.getLogger("nids")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # load the heavy model once at startup instead of on the first request
     logger.info("loading model...")
     from .app.services import model
 
@@ -50,6 +49,11 @@ async def log_requests(request: Request, call_next):
 async def on_error(request: Request, exc: Exception):
     logger.exception("error on %s %s", request.method, request.url.path)
     return JSONResponse(status_code=500, content={"error": "Internal server error"})
+
+
+@app.get("/")
+def root():
+    return {"name": "NIDS API", "status": "ok", "docs": "/docs", "health": "/health"}
 
 
 app.include_router(health.router)

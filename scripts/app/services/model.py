@@ -12,7 +12,7 @@ from ..config import settings
 
 logger = logging.getLogger("nids.model")
 
-# light metadata loads now (no tensorflow needed)
+# metadata only here; tensorflow stays out of import time
 scaler = joblib.load(settings.SCALER_PATH)
 
 with open(settings.LABELS_PATH) as f:
@@ -29,13 +29,27 @@ if len(FEATURE_NAMES) != N_FEATURES:
         f"Feature-name count ({len(FEATURE_NAMES)}) does not match model input width ({N_FEATURES})."
     )
 
-# background rows for SHAP (already scaled)
-_bg_all = np.load(settings.BACKGROUND_PATH)
+# SHAP background, already scaled to [0, 1]. Use the processed sample if present,
+# else demo_flows, else a synthetic background so a clean clone still runs.
 _rng = np.random.default_rng(42)
-_idx = _rng.choice(_bg_all.shape[0], size=min(settings.BACKGROUND_SIZE, _bg_all.shape[0]), replace=False)
-background = _bg_all[_idx].astype(np.float32)
+_bg_source = (
+    settings.BACKGROUND_PATH if settings.BACKGROUND_PATH.exists()
+    else settings.DEMO_FLOWS_PATH if settings.DEMO_FLOWS_PATH.exists()
+    else None
+)
+if _bg_source is not None:
+    _bg_all = np.load(_bg_source)
+    _idx = _rng.choice(_bg_all.shape[0], size=min(settings.BACKGROUND_SIZE, _bg_all.shape[0]), replace=False)
+    background = _bg_all[_idx].astype(np.float32)
+    logger.info("SHAP background loaded from %s (%d rows)", _bg_source.name, background.shape[0])
+else:
+    logger.warning(
+        "No SHAP background file found, using a synthetic [0,1] background of %d rows.",
+        settings.BACKGROUND_SIZE,
+    )
+    background = _rng.random((settings.BACKGROUND_SIZE, N_FEATURES, 1), dtype=np.float32)
 
-# heavy model + explainer load lazily (see load_models)
+# model + explainer load lazily, see load_models
 model = None
 explainer = None
 
@@ -51,7 +65,7 @@ def load_models() -> None:
     t0 = time.perf_counter()
     model = tf.keras.models.load_model(settings.MODEL_PATH, compile=False)
     explainer = shap.GradientExplainer(model, background)
-    model.predict(background[:1].reshape(1, N_FEATURES, 1), verbose=0)  # warm up
+    model.predict(background[:1].reshape(1, N_FEATURES, 1), verbose=0)  # warmup
     logger.info("model + explainer ready in %.2fs", time.perf_counter() - t0)
 
 

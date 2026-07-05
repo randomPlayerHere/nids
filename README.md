@@ -4,7 +4,6 @@
 ![Python](https://img.shields.io/badge/Python-3.8%2B-green?style=for-the-badge&logo=python)
 ![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-orange?style=for-the-badge&logo=tensorflow)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)
 
 # Network Intrusion Detection System
 
@@ -18,16 +17,17 @@
 
 ## Overview
 
-This project implements a network intrusion detection system using a one-dimensional Deep Convolutional Neural Network (DCNN). The model is trained on the CICIDS2017 dataset to perform binary classification, distinguishing between benign network traffic and various types of cyber attacks.
+This project implements a network intrusion detection system using a one-dimensional Deep Convolutional Neural Network (DCNN). The model is trained on the CICIDS2017 dataset to perform **multi-class classification** across 11 categories — `BENIGN` plus 10 attack families (DDoS, PortScan, Botnet, the DoS variants, the Patators, and Web Attacks).
 
 The approach draws from recent advances in deep learning for cybersecurity applications, where convolutional architectures have shown remarkable success in extracting spatial features from network flow data.
 
 **Key Features:**
-- Binary classification system (BENIGN vs ATTACK)
+- 11-class classifier (BENIGN + 10 attack families) over 78 CICIDS flow features
 - 1D Convolutional Neural Network architecture
-- Trained on the comprehensive CICIDS2017 dataset
-- REST API and web interface for easy deployment
-- TensorFlow Lite support for resource-constrained environments
+- FastAPI backend with SHAP explanations and a live WebSocket alert stream
+- React/Vite real-time dashboard (alert feed, threat map, per-flow explanations)
+- One-command full-stack deployment via Docker Compose
+- TensorFlow Lite export for resource-constrained environments
 
 ---
 
@@ -80,18 +80,28 @@ The Canadian Institute for Cybersecurity Intrusion Detection System 2017 (CICIDS
 ```
 nids/
 ├── models/
-│   ├── nids_dcnn_model.h5       # Trained Keras model
-│   ├── nids_dcnn_model.tflite   # TensorFlow Lite version
-│   └── cicids_scaler.pkl        # MinMaxScaler for feature normalization
+│   └── new/
+│       ├── nids_model.h5         # Trained 11-class Keras model
+│       ├── nids_model.tflite     # TensorFlow Lite version
+│       ├── cicids_scaler.pkl     # MinMaxScaler for feature normalization
+│       └── class_labels.json     # Index → label mapping
 ├── scripts/
-│   ├── convert_to_tflite.py     # Model conversion utility
-│   └── preprocessing.py         # Data preprocessing utilities
-├── app.py                       # FastAPI backend server
-├── code.html                    # Web frontend interface
-├── Dockerfile                   # Container configuration
-├── Procfile                     # Deployment configuration
-├── favicon.png                  # Application icon
-└── requirements.txt             # Python dependencies
+│   ├── api.py                    # FastAPI entrypoint (uvicorn scripts.api:app)
+│   ├── app/
+│   │   ├── config.py             # Env-driven settings (NIDS_* overrides)
+│   │   ├── schemas.py            # Pydantic request/response models
+│   │   ├── routers/              # health, predict, analyze, stream (WS)
+│   │   └── services/             # model, SHAP, csv_loader, demo_stream, geoip
+│   ├── convert_to_tflite.py      # Model conversion utility
+│   └── preprocessing.py          # Data preprocessing utilities
+├── frontend/                     # React + Vite dashboard (nginx-served in prod)
+│   ├── src/lib/api.ts            # Backend client (REST + WebSocket)
+│   ├── Dockerfile                # Build → nginx image
+│   └── nginx.conf                # Static serve + reverse proxy to backend
+├── tests/                        # Backend pytest suite
+├── Dockerfile                    # Backend container
+├── docker-compose.yml            # Full stack: backend + frontend
+└── requirements.txt              # Python dependencies
 ```
 
 ---
@@ -108,26 +118,46 @@ nids/
 Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/yourusername/nids.git
+git clone https://github.com/randomPlayerHere/nids.git
 cd nids
 pip install -r requirements.txt
 ```
 
 ### Running the Application
 
-**Option 1: FastAPI REST API (Recommended)**
+**Option 1: Full stack with Docker Compose (Recommended)**
+
+Builds the backend API and the nginx-served React dashboard, wired together on
+one network:
 
 ```bash
-uvicorn app:app --reload --host 0.0.0.0 --port 8000
+cp .env.example .env        # optional — sane defaults work out of the box
+docker compose up --build
 ```
 
-Access the interactive API documentation at `http://localhost:8000/docs`
+Then open the dashboard at **http://localhost:8080**. The frontend's nginx
+reverse-proxies `/api`, `/ws`, `/health`, etc. to the backend, so there is no
+CORS or URL configuration to do.
 
-**Option 2: Docker Deployment**
+**Option 2: Run the two services locally for development**
 
 ```bash
-docker build -t nids .
-docker run -p 8000:8000 nids
+# Terminal 1 — backend (hot reload)
+uvicorn scripts.api:app --reload --port 8000
+
+# Terminal 2 — frontend (Vite dev server on :8080)
+cd frontend
+echo "VITE_API_BASE=http://localhost:8000" > .env   # point the UI at the API
+npm install && npm run dev
+```
+
+Interactive API docs are always available at `http://localhost:8000/docs`.
+
+**Option 3: Backend container only**
+
+```bash
+docker build -t nids-backend .
+docker run -p 8000:8000 nids-backend
 ```
 
 ---
@@ -190,9 +220,6 @@ curl -X POST http://localhost:8000/api/analyze \
 override, e.g. `NIDS_CORS_ORIGINS`, `NIDS_STREAM_RATE_HZ`, `NIDS_GEOIP_DB_PATH`,
 `NIDS_MAX_UPLOAD_ROWS` (see `scripts/app/config.py`).
 
-> For a full walkthrough of how every component works and why, see
-> [`explain.md`](explain.md).
-
 ### Python Integration
 
 For direct integration into your Python applications:
@@ -204,8 +231,8 @@ import numpy as np
 import joblib
 
 # Load the trained model and scaler
-model = load_model('models/nids_dcnn_model.h5')
-scaler = joblib.load('models/cicids_scaler.pkl')
+model = load_model('models/new/nids_model.h5')
+scaler = joblib.load('models/new/cicids_scaler.pkl')
 
 # Load and preprocess your data
 df = pd.read_csv('network_traffic.csv')
@@ -270,7 +297,7 @@ The DCNN architecture is designed to extract meaningful patterns from sequential
 | Flatten | - | (samples, 18944) |
 | Dense | 256 units, ReLU, L1/L2 regularization | (samples, 256) |
 | Dropout | 0.1 | (samples, 256) |
-| Dense | 2 units, Softmax | (samples, 2) |
+| Dense | 11 units, Softmax | (samples, 11) |
 
 **Training Configuration:**
 - Optimizer: Adam (learning rate: 0.0001)
@@ -296,6 +323,28 @@ Performance may vary depending on the similarity between your data and the train
 
 ---
 
+## Deployment
+
+The stack is two stateless services — a FastAPI/TensorFlow backend and a static
+React bundle — so it deploys cleanly anywhere.
+
+- **Local / demo:** `docker compose up --build` → dashboard at
+  `http://localhost:8080`. Zero config; best for a presentation or viva.
+- **Free public link:** host the **backend on Hugging Face Spaces** (Docker, free
+  16 GB RAM, WebSocket support) and the **frontend on Vercel**. Step-by-step
+  instructions are in **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+
+The repo is pre-configured for this: the backend honors `$PORT`, synthesizes its
+SHAP background when the large `X_dcnn.npy` isn't present, and the frontend's API
+base is set with the `VITE_API_BASE` build variable.
+
+If you later need production scale, the same images run on any container platform
+(Cloud Run, Fly.io, Railway) or Kubernetes — just terminate TLS, set
+`NIDS_CORS_ORIGINS` to your exact frontend origin, and add auth in front of the
+unauthenticated endpoints.
+
+---
+
 ## Troubleshooting
 
 **Feature Mismatch Error**
@@ -304,8 +353,8 @@ This occurs when your input CSV has a different number of columns than expected.
 
 **Model Not Found Error**
 
-Verify that the following files exist in the `models/` directory:
-- `nids_dcnn_model.h5` (or `nids_dcnn_model.tflite`)
+Verify that the following files exist in the `models/new/` directory:
+- `nids_model.h5` (or `nids_model.tflite`)
 - `cicids_scaler.pkl`
 
 **NaN or Infinity Values**
@@ -338,7 +387,7 @@ This project builds upon the work of many researchers and open-source contributo
 
 - **Canadian Institute for Cybersecurity** for creating and maintaining the CICIDS2017 dataset
 - **TensorFlow and Keras teams** for the deep learning framework
-- **Streamlit** for the web application framework
+- **FastAPI** and **React/Vite** for the application stack
 - The broader research community working on network security and machine learning
 
 ---
@@ -357,6 +406,6 @@ This project is released under the MIT License. See the LICENSE file for details
 
 **Last Updated:** March 2026
 
-[Report Bug](https://github.com/yourusername/nids/issues) | [Request Feature](https://github.com/yourusername/nids/issues)
+[Report Bug](https://github.com/randomPlayerHere/nids/issues) | [Request Feature](https://github.com/randomPlayerHere/nids/issues)
 
 </div>

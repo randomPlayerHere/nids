@@ -35,6 +35,34 @@ def infer_fast(raw: np.ndarray, already_scaled: bool = False) -> tuple[str, int,
     return LABELS[pred_idx], pred_idx, float(probs[pred_idx]), probs
 
 
+def infer_batch(raw: np.ndarray, already_scaled: bool = False) -> np.ndarray:
+    """raw: (N, N_FEATURES) -> class probabilities (N, n_classes)."""
+    if already_scaled:
+        x = raw.reshape(-1, N_FEATURES, 1).astype(np.float32)
+    else:
+        x = scaler.transform(raw).astype(np.float32).reshape(-1, N_FEATURES, 1)
+    return np.asarray(get_model().predict(x, verbose=0))
+
+
+def shap_batch(raw: np.ndarray, pred_idx: np.ndarray, already_scaled: bool = False, nsamples: int = 64) -> np.ndarray:
+    """SHAP contributions for each row's predicted class. raw: (M, N_FEATURES) -> (M, N_FEATURES).
+    Lower nsamples is faster but noisier than the explainer default of 200."""
+    if already_scaled:
+        x = raw.reshape(-1, N_FEATURES, 1).astype(np.float32)
+    else:
+        x = scaler.transform(raw).astype(np.float32).reshape(-1, N_FEATURES, 1)
+
+    sv = get_explainer().shap_values(x, nsamples=nsamples)
+    out = np.empty((x.shape[0], N_FEATURES), dtype=np.float32)
+    for i in range(x.shape[0]):
+        ci = int(pred_idx[i])
+        if isinstance(sv, list):
+            out[i] = np.asarray(sv[ci])[i].reshape(-1)[:N_FEATURES]
+        else:
+            out[i] = np.asarray(sv)[i, ..., ci].reshape(-1)[:N_FEATURES]
+    return out
+
+
 def infer_explained(raw: np.ndarray, already_scaled: bool = False) -> tuple[str, int, float, np.ndarray, np.ndarray]:
     x = _to_model_input(raw, already_scaled)
     probs = get_model().predict(x, verbose=0)[0]
